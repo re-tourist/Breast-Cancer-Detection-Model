@@ -172,15 +172,16 @@ docs
 
 ### Scope
 - 确认 dev 为集成分支
+- 确认 docs 为文档分支
 - feature 分支规范（feat/*）
 - commit message 规范
 
 ### Deliverables
-- docs/workflow.md
+- docs/gitflow/workflow.md
 
 ### Acceptance Criteria
 - 分支策略清晰
-- 所有 feature 分支可合并 dev
+- 所有 feature 分支和 docs 分支可合并 dev
 - 无冲突流程问题
 
 ### Suggested Branch
