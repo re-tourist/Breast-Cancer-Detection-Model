@@ -71,7 +71,7 @@ No third-party dependencies are required for the current inspection utility.
 
 Review the current Stage 0 materials:
 
-1. Read the stage planning docs in `docs/plan/` and `docs/gitflow/issue/`.
+1. Read the stage planning docs in `docs/plan/`, the issue breakdown in `docs/gitflow/issue/`, and the Git workflow in `docs/gitflow/workflow.md`.
 2. Inspect the dataset with:
 
 ```bash
