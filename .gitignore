@@ -1,0 +1,49 @@
+# Python bytecode and caches
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+.conda/
+conda-meta/
+
+# Notebooks
+.ipynb_checkpoints/
+
+# Editor and OS files
+.vscode/
+.idea/
+*.suo
+*.user
+*.userossc
+Thumbs.db
+Desktop.ini
+.DS_Store
+
+# Logs and experiment artifacts
+*.log
+wandb/
+mlruns/
+outputs/
+*.ckpt
+*.pth
+*.pt
+*.onnx
+
+# Large data artifacts and extracted images
+data/raw/primary/*.zip
+data/raw/primary/train_img/
+data/raw/primary/test_img/
+data/raw/external/
+data/interim/
+data/processed/cache/
