@@ -1,0 +1,103 @@
+{
+  "summary": {
+    "total_images": 1300,
+    "total_breasts": 650,
+    "paired_success_count": 650,
+    "image_level_pathology_distribution": {
+      "B": 162,
+      "M": 314,
+      "N": 824
+    },
+    "breast_level_pathology_distribution": {
+      "B": 81,
+      "M": 157,
+      "N": 412
+    },
+    "image_level_is_malignant_distribution": {
+      "0": 986,
+      "1": 314
+    },
+    "breast_level_is_malignant_distribution": {
+      "0": 493,
+      "1": 157
+    },
+    "anomaly_counts": {
+      "missing_required_columns": 0,
+      "invalid_pathology_values": 0,
+      "duplicate_image_ids": 0,
+      "invalid_breast_image_count": 0,
+      "invalid_breast_view_pairs": 0,
+      "inconsistent_breast_pathology": 0,
+      "missing_archive_paths": 0,
+      "invalid_paired_samples": 0,
+      "duplicate_paired_breast_ids": 0,
+      "empty_paired_fields": 0,
+      "inconsistent_paired_metadata": 0
+    }
+  },
+  "validation": {
+    "strict_mode": true,
+    "status": "ok",
+    "error_counts": {
+      "missing_required_columns": 0,
+      "invalid_pathology_values": 0,
+      "duplicate_image_ids": 0,
+      "invalid_breast_image_count": 0,
+      "invalid_breast_view_pairs": 0,
+      "inconsistent_breast_pathology": 0,
+      "missing_archive_paths": 0,
+      "invalid_paired_samples": 0,
+      "duplicate_paired_breast_ids": 0,
+      "empty_paired_fields": 0,
+      "inconsistent_paired_metadata": 0
+    },
+    "single_image_checks": {
+      "required_columns": {
+        "ok": true,
+        "missing": []
+      },
+      "pathology_values": {
+        "ok": true,
+        "invalid_rows": []
+      },
+      "duplicate_image_ids": {
+        "ok": true,
+        "duplicates": []
+      },
+      "breast_image_count": {
+        "ok": true,
+        "invalid_breast_ids": []
+      },
+      "breast_view_pairs": {
+        "ok": true,
+        "invalid_breast_ids": []
+      },
+      "breast_pathology_consistency": {
+        "ok": true,
+        "invalid_breast_ids": []
+      },
+      "archive_paths_exist": {
+        "ok": true,
+        "missing_paths": []
+      }
+    },
+    "paired_checks": {
+      "paired_missing_or_duplicate": {
+        "ok": true,
+        "invalid_breast_ids": []
+      },
+      "duplicate_paired_breast_ids": {
+        "ok": true,
+        "duplicates": []
+      },
+      "empty_paired_fields": {
+        "ok": true,
+        "invalid_rows": []
+      },
+      "paired_metadata_consistency": {
+        "ok": true,
+        "invalid_breast_ids": []
+      }
+    }
+  }
+}
