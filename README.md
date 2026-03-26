@@ -109,7 +109,7 @@ python scripts/run_eval.py --checkpoint outputs/m1_baseline/best_model.pt --imag
 python scripts/run_stage1_smoke.py
 ```
 
-For a fuller Stage 1 runbook, artifact map, and current limitations, read `docs/handoff/stage1_handoff.md`.
+For a fuller Stage 1 runbook and artifact map, read `docs/handoff/stage1_handoff.md`. For the milestone closeout state and M2 handoff priorities, read `docs/handoff/stage1_closeout.md`.
 
 ## Current Progress
 
@@ -132,3 +132,4 @@ For a fuller Stage 1 runbook, artifact map, and current limitations, read `docs/
 - use the Stage 1 artifacts as the starting point for Milestone 2 baseline work
 - prioritize a stronger breast-level modeling path over further polishing the current single-image fallback
 - diagnose and reduce prediction-collapse risk before treating validation numbers as informative
+
