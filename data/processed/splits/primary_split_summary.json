@@ -1,0 +1,80 @@
+{
+  "split_strategy": "stratified_group_holdout",
+  "random_state": 42,
+  "val_ratio": 0.2,
+  "requested_stratified": true,
+  "paired": {
+    "train": {
+      "num_breasts": 520,
+      "num_rows": 520,
+      "label_counts": {
+        "0": 395,
+        "1": 125
+      }
+    },
+    "val": {
+      "num_breasts": 130,
+      "num_rows": 130,
+      "label_counts": {
+        "0": 98,
+        "1": 32
+      }
+    }
+  },
+  "single": {
+    "train": {
+      "num_breasts": 520,
+      "num_images": 1040,
+      "label_counts": {
+        "0": 790,
+        "1": 250
+      }
+    },
+    "val": {
+      "num_breasts": 130,
+      "num_images": 260,
+      "label_counts": {
+        "0": 196,
+        "1": 64
+      }
+    }
+  },
+  "checks": {
+    "breast_id_leakage": {
+      "ok": true,
+      "overlap_count": 0,
+      "overlap_breast_ids": []
+    },
+    "paired_split_coverage": {
+      "ok": true,
+      "total_breasts": 650,
+      "covered_breasts": 650,
+      "total_rows": 650,
+      "covered_rows": 650,
+      "missing_breast_ids": []
+    },
+    "single_split_mapping": {
+      "ok": true,
+      "total_single_rows": 1300,
+      "covered_single_rows": 1300,
+      "train_breasts": 520,
+      "val_breasts": 130,
+      "unmapped_breast_ids": [],
+      "unexpected_breast_ids": []
+    },
+    "paired_core_fields_complete": {
+      "ok": true,
+      "invalid_rows": []
+    },
+    "non_empty_split": {
+      "ok": true,
+      "empty_sides": []
+    },
+    "strategy_fallback": {
+      "ok": true,
+      "requested_stratified": true,
+      "used_fallback": false,
+      "reason": ""
+    }
+  }
+}
