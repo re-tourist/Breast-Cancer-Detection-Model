@@ -1,0 +1,63 @@
+{
+  "total_breasts": 650,
+  "fold_count": 5,
+  "is_stratified": true,
+  "used_fallback": false,
+  "fallback_reason": "",
+  "val_fold": 0,
+  "train_folds": [
+    1,
+    2,
+    3,
+    4
+  ],
+  "train_val_derived_from_fold_assignment": true,
+  "folds": [
+    {
+      "fold": 0,
+      "breast_count": 130,
+      "image_count": 260,
+      "malignant_count": 32,
+      "non_malignant_count": 98,
+      "malignant_ratio": 0.24615384615384617,
+      "warnings": []
+    },
+    {
+      "fold": 1,
+      "breast_count": 130,
+      "image_count": 260,
+      "malignant_count": 32,
+      "non_malignant_count": 98,
+      "malignant_ratio": 0.24615384615384617,
+      "warnings": []
+    },
+    {
+      "fold": 2,
+      "breast_count": 130,
+      "image_count": 260,
+      "malignant_count": 31,
+      "non_malignant_count": 99,
+      "malignant_ratio": 0.23846153846153847,
+      "warnings": []
+    },
+    {
+      "fold": 3,
+      "breast_count": 130,
+      "image_count": 260,
+      "malignant_count": 31,
+      "non_malignant_count": 99,
+      "malignant_ratio": 0.23846153846153847,
+      "warnings": []
+    },
+    {
+      "fold": 4,
+      "breast_count": 130,
+      "image_count": 260,
+      "malignant_count": 31,
+      "non_malignant_count": 99,
+      "malignant_ratio": 0.23846153846153847,
+      "warnings": []
+    }
+  ],
+  "warnings": []
+}
