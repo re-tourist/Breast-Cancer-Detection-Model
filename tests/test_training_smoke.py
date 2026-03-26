@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 import csv
 import json
@@ -18,7 +18,13 @@ from torch import nn
 
 from src.data import SINGLE_IMAGE_FIELDS
 from src.models.baseline import MinimalSingleImageCNN
-from src.train.trainer import build_single_image_loaders, validate_one_epoch
+from src.train.trainer import (
+    build_single_image_loaders,
+    fit,
+    is_better_selection,
+    resolve_selection_metric,
+    validate_one_epoch,
+)
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -75,10 +81,87 @@ class TrainingSmokeTestCase(unittest.TestCase):
         self.assertEqual(metrics_summary["best_epoch"], 1)
         self.assertEqual(metrics_summary["train_samples"], 8)
         self.assertEqual(metrics_summary["val_samples"], 4)
+        self.assertEqual(metrics_summary["primary_selection_metric"], "breast_mean_auroc")
+        self.assertEqual(metrics_summary["selection_mode"], "auto")
+        self.assertEqual(metrics_summary["best_metric_name"], "breast_mean_auroc")
+        self.assertIsNotNone(metrics_summary["best_metric_value"])
+        self.assertFalse(metrics_summary["fallback_used"])
+        self.assertEqual(metrics_summary["fallback_reason"], "")
         self.assertIn("image_accuracy", metrics_summary["best_metrics"])
         self.assertIn("breast_mean_accuracy", metrics_summary["best_metrics"])
         self.assertIsNotNone(metrics_summary["best_metrics"]["image_auroc"])
         self.assertIsNotNone(metrics_summary["best_metrics"]["breast_mean_auroc"])
+        history_entry = metrics_summary["history"][0]
+        self.assertEqual(history_entry["selection_metric_name"], "breast_mean_auroc")
+        self.assertFalse(history_entry["selection_fallback_used"])
+        self.assertEqual(history_entry["selection_fallback_reason"], "")
+
+    def test_auto_selection_prefers_breast_mean_auroc(self) -> None:
+        selection = resolve_selection_metric(
+            {
+                "val_loss": 0.8,
+                "image_auroc": 0.63,
+                "breast_mean_auroc": 0.71,
+            },
+            selection_metric="auto",
+        )
+
+        self.assertEqual(selection["metric_name"], "breast_mean_auroc")
+        self.assertEqual(selection["metric_value"], 0.71)
+        self.assertTrue(selection["higher_is_better"])
+        self.assertFalse(selection["fallback_used"])
+        self.assertEqual(selection["fallback_reason"], "")
+
+    def test_auto_selection_falls_back_to_image_auroc(self) -> None:
+        selection = resolve_selection_metric(
+            {
+                "val_loss": 0.8,
+                "image_auroc": 0.63,
+                "breast_mean_auroc": None,
+            },
+            selection_metric="auto",
+        )
+
+        self.assertEqual(selection["metric_name"], "image_auroc")
+        self.assertEqual(selection["metric_value"], 0.63)
+        self.assertTrue(selection["fallback_used"])
+        self.assertIn("breast_mean_auroc unavailable", selection["fallback_reason"])
+
+    def test_auto_selection_falls_back_to_val_loss(self) -> None:
+        selection = resolve_selection_metric(
+            {
+                "val_loss": 0.42,
+                "image_auroc": None,
+                "breast_mean_auroc": None,
+            },
+            selection_metric="auto",
+        )
+
+        self.assertEqual(selection["metric_name"], "val_loss")
+        self.assertEqual(selection["metric_value"], 0.42)
+        self.assertFalse(selection["higher_is_better"])
+        self.assertTrue(selection["fallback_used"])
+        self.assertIn("image_auroc unavailable", selection["fallback_reason"])
+
+    def test_higher_priority_selection_beats_lower_priority_metric(self) -> None:
+        lower_priority = resolve_selection_metric(
+            {
+                "val_loss": 0.10,
+                "image_auroc": 0.95,
+                "breast_mean_auroc": None,
+            },
+            selection_metric="auto",
+        )
+        higher_priority = resolve_selection_metric(
+            {
+                "val_loss": 0.90,
+                "image_auroc": 0.10,
+                "breast_mean_auroc": 0.40,
+            },
+            selection_metric="auto",
+        )
+
+        self.assertTrue(is_better_selection(higher_priority, lower_priority))
 
     def test_validate_one_epoch_returns_none_for_single_class_auroc(self) -> None:
         train_split_path, val_split_path, archive_path = self.write_split_inputs(
@@ -110,6 +193,42 @@ class TrainingSmokeTestCase(unittest.TestCase):
         self.assertIsNone(metrics["breast_mean_auroc"])
         self.assertEqual(metrics["num_val_images"], 4)
         self.assertEqual(metrics["num_val_breasts"], 2)
+
+    def test_fit_raises_when_explicit_metric_is_unavailable_for_all_epochs(self) -> None:
+        train_split_path, val_split_path, archive_path = self.write_split_inputs(
+            train_specs=[("A_L", 0), ("B_R", 1)],
+            val_specs=[("C_L", 0), ("D_R", 0)],
+        )
+        loaders = build_single_image_loaders(
+            train_split_csv_path=train_split_path,
+            val_split_csv_path=val_split_path,
+            archive_path=archive_path,
+            image_size=64,
+            batch_size=2,
+            num_workers=0,
+        )
+
+        try:
+            model = MinimalSingleImageCNN(in_channels=3)
+            criterion = nn.BCEWithLogitsLoss()
+            optimizer = torch.optim.Adam(model.parameters(), lr=1e-3)
+            with self.assertRaisesRegex(
+                ValueError,
+                "Selection metric 'image_auroc' was unavailable for every epoch",
+            ):
+                fit(
+                    model=model,
+                    train_loader=loaders.train_loader,
+                    val_loader=loaders.val_loader,
+                    optimizer=optimizer,
+                    criterion=criterion,
+                    device=torch.device("cpu"),
+                    epochs=1,
+                    output_dir=self.root / "explicit_metric_missing",
+                    selection_metric="image_auroc",
+                )
+        finally:
+            loaders.close()
 
     def write_split_inputs(
         self,
