@@ -4,96 +4,131 @@
 
 This repository is a course project for breast cancer detection from mammography images.
 
-The repository is currently in Stage 0: bootstrap the project, make the dataset layout explicit, inspect the provided data, and define the initial task and evaluation protocol.
+The repository is currently in Stage 1: a minimal runnable pipeline is in place for the breast-level malignant probability task.
 
 Current status:
-- dataset archives, labels, and the submission template are present under `data/raw/primary/`
-- repository directories exist
-- task and data conventions are documented
-- no training pipeline or baseline model is implemented yet
+- Stage 1 data indexing, grouped split, training, evaluation, and smoke-test scripts are implemented
+- the current runnable baseline trains on single-image inputs and reports breast-level metrics through aggregation
+- breast-level evaluation artifacts and one end-to-end smoke report are available under `outputs/`
+- the current outputs only show that the pipeline runs end to end; they do not yet indicate a strong baseline
 
 ## Current Stage and Scope
 
-In scope for the current stage:
-- repository structure and developer-facing documentation
-- data directory conventions
-- lightweight dataset inspection utilities
-- task definition and evaluation protocol
+In scope for the current repository state:
+- reproducible data indexing and paired breast-level sample definitions
+- lightweight preprocessing and dataset loading
+- `breast_id`-grouped split artifacts and fold assignment
+- a minimal single-image baseline train/val loop
+- minimal breast-level aggregation and evaluation artifacts
+- one end-to-end smoke test and sanity report
 
 Out of scope for the current stage:
-- large-scale training
-- complex preprocessing pipelines
-- aggressive optimization
-- external dataset integration beyond storage conventions
+- paired dual-branch training as the mainline baseline
+- cross-validation training orchestration
+- hyperparameter search and benchmark tuning
+- heavy evaluator or experiment-management frameworks
+- Milestone 2 model upgrades
 
 ## Repository Structure
 
-- `configs/`: placeholder for future configuration files
-- `data/`: raw, interim, and processed data layout plus data conventions
-- `docs/`: planning material and project documentation
-- `outputs/`: generated artifacts such as figures, logs, and checkpoints
-- `scripts/`: lightweight runnable utilities
-- `src/`: placeholders for future `models`, `train`, and `eval` code
-- `requirements.txt`: placeholder for later stages; Stage 0 utilities use the Python standard library only
+- `src/data/`: dataset index building, transforms, datasets, and grouped split utilities
+- `src/models/`: the minimal single-image baseline model
+- `src/train/`: train/val loop, checkpoint selection, and metric summary logic
+- `src/eval/`: breast-level aggregation, AUROC calculation, and evaluation artifact writing
+- `scripts/`: runnable Stage 1 entry points
+- `data/processed/metadata/`: generated dataset index artifacts
+- `data/processed/splits/`: generated split and fold assignment artifacts
+- `outputs/m1_baseline/`: baseline training outputs and evaluation artifacts
+- `outputs/m1_smoke/`: end-to-end smoke logs, outputs, and sanity report
 
 ## Data Organization
 
-The primary course dataset currently lives under `data/raw/primary/`.
+The primary course dataset is expected under `data/raw/primary/`.
 
-Expected files:
+Required raw inputs:
 - `train.csv`
 - `train_img.zip`
 - `test_img.zip`
 - `name_sid_submission.csv`
-- the course dataset note DOCX
 
-Observed dataset facts from the current intake:
-- `train.csv` contains 1,300 labeled image rows for 650 `breast_id` studies
-- each `breast_id` has exactly two views: one `CC` image and one `MLO` image
-- the submission template expects one malignant probability per `breast_id`
+Generated Stage 1 artifacts live under:
+- `data/processed/metadata/`
+- `data/processed/splits/`
+- `outputs/m1_baseline/`
+- `outputs/m1_smoke/`
 
-See `data/README.md` for directory rules and the current intake summary.
+See `data/README.md` for the data layout rules and `docs/handoff/stage1_handoff.md` for the Stage 1 artifact map.
 
 ## Environment and Setup
 
 Recommended:
 - Python 3.10 or newer
 
-Stage 0 setup:
-1. Clone the repository.
-2. Keep the provided raw dataset files under `data/raw/primary/`.
-3. Do not modify raw files in place.
-4. If you extract image archives locally, place extracted files under `data/interim/primary/`.
+Current Stage 1 scripts require the runtime environment to provide:
+- `numpy`
+- `Pillow`
+- `torch`
+- `scikit-learn`
 
-No third-party dependencies are required for the current inspection utility.
+Notes:
+- keep the provided raw dataset files under `data/raw/primary/`
+- do not edit raw files in place
+- `requirements.txt` is still not curated for Stage 1, so dependency locking remains a follow-up item
 
 ## Minimal Usage
 
-Review the current Stage 0 materials:
+If the processed artifacts already exist, you can start from training or smoke. Otherwise, the minimal Stage 1 flow is:
 
-1. Read the stage planning docs in `docs/plan/`, the issue breakdown in `docs/gitflow/issue/`, and the Git workflow in `docs/gitflow/workflow.md`.
-2. Inspect the dataset with:
+1. Build dataset indexes:
 
 ```bash
-python scripts/inspect_dataset.py
+python scripts/build_dataset_index.py
 ```
 
-3. Read the task and evaluation protocol in `docs/task_definition.md`.
-4. Read the data layout conventions in `data/README.md`.
+2. Build grouped splits and fold assignment:
 
-There is no training entry point yet. Stage 1 is expected to add the first minimal runnable baseline pipeline.
+```bash
+python scripts/build_splits.py
+```
+
+3. Train the minimal baseline:
+
+```bash
+python scripts/train_baseline.py --epochs 1 --batch-size 8 --image-size 512
+```
+
+4. Run breast-level evaluation from the validation split:
+
+```bash
+python scripts/run_eval.py --checkpoint outputs/m1_baseline/best_model.pt --image-size 512 --output-dir outputs/m1_baseline/eval
+```
+
+5. Run the end-to-end smoke test and generate a sanity report:
+
+```bash
+python scripts/run_stage1_smoke.py
+```
+
+For a fuller Stage 1 runbook, artifact map, and current limitations, read `docs/handoff/stage1_handoff.md`.
 
 ## Current Progress
 
-- repository bootstrap structure is in place
-- raw primary dataset files are stored in the repository data layout
-- breast-level prediction target is documented
-- evaluation is defined around AUROC, matching the course submission requirement
-- a reproducible inspection script is available for verifying the current dataset assumptions
+- dataset indexes exist for both single-image and paired breast-level views
+- minimal preprocessing and dataset loading are implemented
+- grouped train/val splits and 5-fold assignment artifacts are generated by `breast_id`
+- a minimal single-image training loop and checkpoint selection flow are implemented
+- breast-level aggregation and AUROC evaluation artifacts are implemented
+- an end-to-end smoke script records one sanity run and its findings
+
+## Current Limitations
+
+- the training path is still a single-image baseline, not the intended paired breast-level baseline
+- the current smoke run shows weak, tightly clustered predictions and should not be treated as a meaningful performance result
+- fold assignment artifacts exist, but there is no full cross-validation training runner yet
+- dependency packaging is still lightweight and not yet cleaned up for handoff outside the current environment
 
 ## Next Steps
 
-- create breast-level train/validation splits keyed by `breast_id`
-- define the first minimal baseline data loading path
-- implement a simple baseline that consumes paired `CC` and `MLO` views
-- add validation reporting around the documented task definition
+- use the Stage 1 artifacts as the starting point for Milestone 2 baseline work
+- prioritize a stronger breast-level modeling path over further polishing the current single-image fallback
+- diagnose and reduce prediction-collapse risk before treating validation numbers as informative
