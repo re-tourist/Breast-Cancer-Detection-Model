@@ -17,6 +17,13 @@ from torch.utils.data import DataLoader
 from src.data.datasets import DEFAULT_ARCHIVE_PATH, SingleImageDataset
 from src.data.transforms import build_eval_transform, build_train_transform
 
+SELECTION_METRIC_CHOICES = ("auto", "breast_mean_auroc", "image_auroc", "val_loss")
+_SELECTION_PRIORITIES = {
+    "breast_mean_auroc": 3,
+    "image_auroc": 2,
+    "val_loss": 1,
+}
+
 
 @dataclass
 class SingleImageLoaderBundle:
@@ -185,8 +192,9 @@ def fit(
     device: torch.device,
     epochs: int,
     output_dir: str | Path,
+    selection_metric: str = "auto",
 ) -> dict[str, Any]:
-    """Run the minimal train/val loop and save the best checkpoint by val loss."""
+    """Run the minimal train/val loop and save the best checkpoint."""
 
     output_path = Path(output_dir)
     output_path.mkdir(parents=True, exist_ok=True)
@@ -194,7 +202,10 @@ def fit(
 
     history: list[dict[str, Any]] = []
     best_epoch = -1
-    best_val_loss = float("inf")
+    best_metrics: dict[str, Any] | None = None
+    best_selection: dict[str, Any] | None = None
+    selection_mode = "auto" if selection_metric == "auto" else "explicit"
+    primary_selection_metric = "breast_mean_auroc" if selection_metric == "auto" else selection_metric
 
     for epoch in range(1, epochs + 1):
         train_metrics = train_one_epoch(model, train_loader, optimizer, criterion, device)
@@ -204,6 +215,15 @@ def fit(
             **train_metrics,
             **val_metrics,
         }
+        selection_info = resolve_selection_metric(epoch_metrics, selection_metric=selection_metric)
+        epoch_metrics.update(
+            {
+                "selection_metric_name": selection_info["metric_name"],
+                "selection_metric_value": selection_info["metric_value"],
+                "selection_fallback_used": selection_info["fallback_used"],
+                "selection_fallback_reason": selection_info["fallback_reason"],
+            }
+        )
         history.append(epoch_metrics)
         print(
             "Epoch "
@@ -213,24 +233,121 @@ def fit(
             f"image_acc={epoch_metrics['image_accuracy']:.4f} "
             f"image_auroc={_format_metric_value(epoch_metrics['image_auroc'])} "
             f"breast_mean_acc={epoch_metrics['breast_mean_accuracy']:.4f} "
-            f"breast_mean_auroc={_format_metric_value(epoch_metrics['breast_mean_auroc'])}"
+            f"breast_mean_auroc={_format_metric_value(epoch_metrics['breast_mean_auroc'])} "
+            f"selection={selection_info['metric_name']}:{_format_metric_value(selection_info['metric_value'])}"
         )
 
-        if val_metrics["val_loss"] < best_val_loss:
-            best_val_loss = float(val_metrics["val_loss"])
+        if is_better_selection(selection_info, best_selection):
             best_epoch = epoch
+            best_metrics = dict(epoch_metrics)
+            best_selection = dict(selection_info)
             torch.save(model.state_dict(), checkpoint_path)
 
     if best_epoch == -1:
+        if selection_mode == "explicit":
+            raise ValueError(
+                f"Selection metric '{selection_metric}' was unavailable for every epoch. "
+                "Use --selection-metric auto or val_loss."
+            )
         raise RuntimeError("Training finished without producing any epoch metrics.")
 
-    best_metrics = next(metric for metric in history if metric["epoch"] == best_epoch)
+    if best_metrics is None or best_selection is None:
+        raise RuntimeError("Training finished without a valid best checkpoint selection.")
+
     return {
         "history": history,
         "best_epoch": best_epoch,
         "best_metrics": best_metrics,
         "best_checkpoint_path": checkpoint_path,
+        "primary_selection_metric": primary_selection_metric,
+        "selection_mode": selection_mode,
+        "best_metric_name": best_selection["metric_name"],
+        "best_metric_value": best_selection["metric_value"],
+        "fallback_used": best_selection["fallback_used"],
+        "fallback_reason": best_selection["fallback_reason"],
     }
+
+
+def resolve_selection_metric(
+    epoch_metrics: dict[str, Any],
+    selection_metric: str = "auto",
+) -> dict[str, Any]:
+    """Resolve the metric used for best-checkpoint selection for one epoch."""
+
+    if selection_metric not in SELECTION_METRIC_CHOICES:
+        raise ValueError(
+            f"Unsupported selection_metric '{selection_metric}'. "
+            f"Expected one of: {', '.join(SELECTION_METRIC_CHOICES)}."
+        )
+
+    if selection_metric == "auto":
+        breast_mean_auroc = epoch_metrics.get("breast_mean_auroc")
+        if breast_mean_auroc is not None:
+            return _build_selection_info(
+                metric_name="breast_mean_auroc",
+                metric_value=breast_mean_auroc,
+                higher_is_better=True,
+                fallback_used=False,
+                fallback_reason="",
+            )
+
+        image_auroc = epoch_metrics.get("image_auroc")
+        if image_auroc is not None:
+            return _build_selection_info(
+                metric_name="image_auroc",
+                metric_value=image_auroc,
+                higher_is_better=True,
+                fallback_used=True,
+                fallback_reason="breast_mean_auroc unavailable for this epoch.",
+            )
+
+        return _build_selection_info(
+            metric_name="val_loss",
+            metric_value=epoch_metrics["val_loss"],
+            higher_is_better=False,
+            fallback_used=True,
+            fallback_reason="breast_mean_auroc and image_auroc unavailable for this epoch.",
+        )
+
+    if selection_metric == "val_loss":
+        return _build_selection_info(
+            metric_name="val_loss",
+            metric_value=epoch_metrics["val_loss"],
+            higher_is_better=False,
+            fallback_used=False,
+            fallback_reason="",
+        )
+
+    return _build_selection_info(
+        metric_name=selection_metric,
+        metric_value=epoch_metrics.get(selection_metric),
+        higher_is_better=True,
+        fallback_used=False,
+        fallback_reason="",
+    )
+
+
+def is_better_selection(
+    candidate: dict[str, Any],
+    current_best: dict[str, Any] | None,
+) -> bool:
+    """Compare two candidate best-checkpoint selections."""
+
+    candidate_value = candidate["metric_value"]
+    if candidate_value is None:
+        return False
+    if current_best is None:
+        return True
+
+    if candidate["priority_rank"] != current_best["priority_rank"]:
+        return candidate["priority_rank"] > current_best["priority_rank"]
+
+    current_best_value = current_best["metric_value"]
+    if current_best_value is None:
+        return True
+    if candidate["higher_is_better"]:
+        return candidate_value > current_best_value
+    return candidate_value < current_best_value
 
 
 def _binary_accuracy(targets: list[int], probabilities: list[float]) -> float:
@@ -275,3 +392,20 @@ def _aggregate_breast_mean_predictions(
         mean_probabilities.append(float(sum(grouped_probabilities[breast_id]) / len(grouped_probabilities[breast_id])))
 
     return mean_targets, mean_probabilities
+
+
+def _build_selection_info(
+    metric_name: str,
+    metric_value: float | None,
+    higher_is_better: bool,
+    fallback_used: bool,
+    fallback_reason: str,
+) -> dict[str, Any]:
+    return {
+        "metric_name": metric_name,
+        "metric_value": None if metric_value is None else float(metric_value),
+        "higher_is_better": higher_is_better,
+        "fallback_used": fallback_used,
+        "fallback_reason": fallback_reason,
+        "priority_rank": _SELECTION_PRIORITIES[metric_name],
+    }

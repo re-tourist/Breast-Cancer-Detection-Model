@@ -18,6 +18,7 @@ if str(REPO_ROOT) not in sys.path:
 from src.data.datasets import DEFAULT_ARCHIVE_PATH  # noqa: E402
 from src.models.baseline import MinimalSingleImageCNN  # noqa: E402
 from src.train.trainer import (  # noqa: E402
+    SELECTION_METRIC_CHOICES,
     build_single_image_loaders,
     compute_pos_weight,
     fit,
@@ -43,6 +44,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--num-workers", type=int, default=0)
     parser.add_argument("--output-dir", type=Path, default=DEFAULT_OUTPUT_DIR)
+    parser.add_argument("--selection-metric", choices=SELECTION_METRIC_CHOICES, default="auto")
     return parser.parse_args()
 
 
@@ -67,6 +69,7 @@ def main() -> int:
         "num_workers": args.num_workers,
         "device": str(device),
         "model": "MinimalSingleImageCNN",
+        "selection_metric": args.selection_metric,
     }
     write_json(output_dir / "config.json", config)
 
@@ -97,6 +100,7 @@ def main() -> int:
             device=device,
             epochs=args.epochs,
             output_dir=output_dir,
+            selection_metric=args.selection_metric,
         )
     finally:
         loader_bundle.close()
@@ -106,7 +110,13 @@ def main() -> int:
         "train_samples": len(loader_bundle.train_dataset),
         "val_samples": len(loader_bundle.val_dataset),
         "pos_weight": pos_weight,
+        "primary_selection_metric": fit_result["primary_selection_metric"],
+        "selection_mode": fit_result["selection_mode"],
         "best_epoch": fit_result["best_epoch"],
+        "best_metric_name": fit_result["best_metric_name"],
+        "best_metric_value": fit_result["best_metric_value"],
+        "fallback_used": fit_result["fallback_used"],
+        "fallback_reason": fit_result["fallback_reason"],
         "best_metrics": fit_result["best_metrics"],
         "history": fit_result["history"],
         "best_checkpoint_path": str(fit_result["best_checkpoint_path"]),
@@ -114,8 +124,11 @@ def main() -> int:
     write_json(output_dir / "metrics_summary.json", metrics_summary)
 
     print("Training finished successfully")
+    print(f"- primary selection metric: {fit_result['primary_selection_metric']}")
     print(f"- best epoch: {fit_result['best_epoch']}")
-    print(f"- best val loss: {fit_result['best_metrics']['val_loss']:.4f}")
+    print(f"- best metric: {fit_result['best_metric_name']}={format_metric_value(fit_result['best_metric_value'])}")
+    print(f"- fallback used: {fit_result['fallback_used']}")
+    print(f"- fallback reason: {fit_result['fallback_reason'] or 'None'}")
     print(f"- wrote: {output_dir / 'config.json'}")
     print(f"- wrote: {output_dir / 'metrics_summary.json'}")
     print(f"- wrote: {fit_result['best_checkpoint_path']}")
@@ -126,6 +139,12 @@ def write_json(path: Path, payload: dict[str, object]) -> None:
     with path.open("w", encoding="utf-8") as handle:
         json.dump(payload, handle, indent=2, ensure_ascii=False)
         handle.write("\n")
+
+
+def format_metric_value(value: float | None) -> str:
+    if value is None:
+        return "None"
+    return f"{value:.4f}"
 
 
 if __name__ == "__main__":
