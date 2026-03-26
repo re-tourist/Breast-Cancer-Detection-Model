@@ -1,4 +1,4 @@
-﻿"""Build reusable breast_id-grouped train/val split artifacts for Stage 1."""
+"""Build reusable breast_id-grouped train/val split artifacts for Stage 1."""
 
 from __future__ import annotations
 
@@ -14,8 +14,8 @@ if str(REPO_ROOT) not in sys.path:
 from src.data import (  # noqa: E402
     DEFAULT_PAIRED_INDEX_PATH,
     DEFAULT_SINGLE_INDEX_PATH,
-    build_train_val_split,
     build_split_summary,
+    build_train_val_split,
     write_split_artifacts,
 )
 from src.data.splits import (  # noqa: E402
@@ -62,6 +62,8 @@ def main() -> int:
 
     summary = build_split_summary(split_result)
     output_paths = write_split_artifacts(split_result, output_dir=args.output_dir)
+    fold_info = summary["fold_assignment"]
+    fold_summary = summary["fold_summary"]
 
     print("Split artifacts built successfully")
     print(f"- split strategy: {summary['split_strategy']}")
@@ -88,6 +90,14 @@ def main() -> int:
         f"labels {format_distribution(summary['single']['val']['label_counts'])}"
     )
     print(
+        f"- fold assignment: available={fold_info['available']} fold_count={fold_info['fold_count']} "
+        f"val_fold={fold_info['val_fold']}"
+    )
+    print(
+        f"- fold summary: total_breasts={fold_summary['total_breasts']} "
+        f"warnings={len(fold_summary['warnings'])}"
+    )
+    print(
         "- leakage check: "
         f"overlap_count={summary['checks']['breast_id_leakage']['overlap_count']}"
     )
@@ -100,6 +110,8 @@ def main() -> int:
     print(f"- wrote: {output_paths['paired_val']}")
     print(f"- wrote: {output_paths['single_train']}")
     print(f"- wrote: {output_paths['single_val']}")
+    print(f"- wrote: {output_paths['fold_assignment']}")
+    print(f"- wrote: {output_paths['fold_summary']}")
     print(f"- wrote: {output_paths['summary']}")
     return 0
 

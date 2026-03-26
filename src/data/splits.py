@@ -1,4 +1,4 @@
-﻿"""Build reusable breast_id-grouped train/val split artifacts for Stage 1 Issue 1.3."""
+"""Build reusable breast_id-grouped train/val split artifacts for Stage 1 Issue 1.3."""
 
 from __future__ import annotations
 
@@ -30,6 +30,9 @@ SINGLE_SPLIT_FILENAMES = {
     "val": "primary_single_image_split_val.csv",
 }
 SUMMARY_FILENAME = "primary_split_summary.json"
+FOLD_ASSIGNMENT_FILENAME = "primary_fold_assignment.csv"
+FOLD_SUMMARY_FILENAME = "primary_fold_summary.json"
+FOLD_ASSIGNMENT_FIELDS = ("breast_id", "fold", "target", "num_images")
 PAIRED_REQUIRED_COLUMNS = frozenset(PAIRED_BREAST_FIELDS)
 SINGLE_REQUIRED_COLUMNS = frozenset(SINGLE_IMAGE_FIELDS)
 PAIRED_CORE_FIELDS = ("breast_id", "image_id_cc", "image_id_mlo", "image_path_cc", "image_path_mlo")
@@ -99,7 +102,7 @@ def build_train_val_split(
             },
         )
 
-    train_indices, val_indices, split_strategy, fallback_info = _select_split_indices(
+    selection_result = _select_split_indices(
         labels=paired_labels,
         breast_ids=paired_breast_ids,
         val_ratio=val_ratio,
@@ -107,12 +110,35 @@ def build_train_val_split(
         stratified=stratified,
     )
 
+    train_indices = selection_result["train_indices"]
+    val_indices = selection_result["val_indices"]
+    split_strategy = selection_result["split_strategy"]
+    fallback_info = selection_result["fallback"]
+    fold_assignment_meta = selection_result["fold_assignment"]
+
     train_breast_ids = {paired_breast_ids[index] for index in train_indices}
     val_breast_ids = {paired_breast_ids[index] for index in val_indices}
     paired_train_rows = [row for row in paired_rows if row["breast_id"] in train_breast_ids]
     paired_val_rows = [row for row in paired_rows if row["breast_id"] in val_breast_ids]
     single_train_rows = [row for row in single_rows if row["breast_id"] in train_breast_ids]
     single_val_rows = [row for row in single_rows if row["breast_id"] in val_breast_ids]
+
+    image_counts_by_breast = Counter(row["breast_id"] for row in single_rows)
+    fold_assignment_rows = _build_fold_assignment_rows(
+        paired_rows=paired_rows,
+        paired_labels=paired_labels,
+        image_counts_by_breast=image_counts_by_breast,
+        fold_assignment_meta=fold_assignment_meta,
+    )
+    fold_summary = _build_fold_summary(
+        fold_assignment_rows=fold_assignment_rows,
+        num_folds=fold_assignment_meta["num_folds"],
+        requested_stratified=stratified,
+        fallback_info=fallback_info,
+        val_fold=fold_assignment_meta["val_fold"],
+        train_folds=fold_assignment_meta["train_folds"],
+        train_val_derived_from_fold_assignment=fold_assignment_meta["train_val_derived_from_assignment"],
+    )
 
     checks = _build_checks(
         paired_rows=paired_rows,
@@ -125,6 +151,9 @@ def build_train_val_split(
         val_breast_ids=val_breast_ids,
         requested_stratified=stratified,
         fallback_info=fallback_info,
+        fold_assignment_meta=fold_assignment_meta,
+        fold_assignment_rows=fold_assignment_rows,
+        fold_summary=fold_summary,
     )
     _raise_on_failed_checks(checks)
 
@@ -150,6 +179,12 @@ def build_train_val_split(
             "train": sorted(train_breast_ids),
             "val": sorted(val_breast_ids),
         },
+        "fold_assignment": {
+            "fieldnames": FOLD_ASSIGNMENT_FIELDS,
+            "rows": fold_assignment_rows,
+            **fold_assignment_meta,
+        },
+        "fold_summary": fold_summary,
         "checks": checks,
     }
 
@@ -158,29 +193,36 @@ def write_split_artifacts(
     split_result: dict[str, Any],
     output_dir: str | Path = DEFAULT_SPLIT_DIR,
 ) -> dict[str, Path]:
-    """Write reusable split CSVs and the JSON summary report."""
+    """Write reusable split CSVs, fold artifacts, and the JSON summary reports."""
 
     output_root = Path(output_dir)
     paired = split_result["paired"]
     single = split_result["single"]
+    fold_assignment = split_result["fold_assignment"]
 
     paired_train_path = output_root / PAIRED_SPLIT_FILENAMES["train"]
     paired_val_path = output_root / PAIRED_SPLIT_FILENAMES["val"]
     single_train_path = output_root / SINGLE_SPLIT_FILENAMES["train"]
     single_val_path = output_root / SINGLE_SPLIT_FILENAMES["val"]
     summary_path = output_root / SUMMARY_FILENAME
+    fold_assignment_path = output_root / FOLD_ASSIGNMENT_FILENAME
+    fold_summary_path = output_root / FOLD_SUMMARY_FILENAME
 
     write_csv_rows(paired_train_path, paired["fieldnames"], paired["train_rows"])
     write_csv_rows(paired_val_path, paired["fieldnames"], paired["val_rows"])
     write_csv_rows(single_train_path, single["fieldnames"], single["train_rows"])
     write_csv_rows(single_val_path, single["fieldnames"], single["val_rows"])
+    write_csv_rows(fold_assignment_path, fold_assignment["fieldnames"], fold_assignment["rows"])
     write_json_file(summary_path, build_split_summary(split_result))
+    write_json_file(fold_summary_path, split_result["fold_summary"])
 
     return {
         "paired_train": paired_train_path,
         "paired_val": paired_val_path,
         "single_train": single_train_path,
         "single_val": single_val_path,
+        "fold_assignment": fold_assignment_path,
+        "fold_summary": fold_summary_path,
         "summary": summary_path,
     }
 
@@ -192,6 +234,7 @@ def build_split_summary(split_result: dict[str, Any]) -> dict[str, Any]:
     paired_val_rows = split_result["paired"]["val_rows"]
     single_train_rows = split_result["single"]["train_rows"]
     single_val_rows = split_result["single"]["val_rows"]
+    fold_assignment = split_result["fold_assignment"]
 
     return {
         "split_strategy": split_result["split_strategy"],
@@ -222,6 +265,15 @@ def build_split_summary(split_result: dict[str, Any]) -> dict[str, Any]:
                 "label_counts": _label_counts(single_val_rows),
             },
         },
+        "fold_assignment": {
+            "available": bool(fold_assignment["rows"]),
+            "fieldnames": list(fold_assignment["fieldnames"]),
+            "fold_count": fold_assignment["num_folds"],
+            "val_fold": fold_assignment["val_fold"],
+            "train_folds": list(fold_assignment["train_folds"]),
+            "train_val_derived_from_fold_assignment": fold_assignment["train_val_derived_from_assignment"],
+        },
+        "fold_summary": split_result["fold_summary"],
         "checks": split_result["checks"],
     }
 
@@ -278,11 +330,19 @@ def _select_split_indices(
     val_ratio: float,
     random_state: int,
     stratified: bool,
-) -> tuple[list[int], list[int], str, dict[str, Any]]:
+) -> dict[str, Any]:
     fallback_info = {
         "requested_stratified": bool(stratified),
         "used_fallback": False,
         "reason": "",
+    }
+    empty_fold_assignment = {
+        "available": False,
+        "fold_by_index": {},
+        "num_folds": 0,
+        "val_fold": None,
+        "train_folds": [],
+        "train_val_derived_from_assignment": False,
     }
 
     if stratified:
@@ -298,24 +358,34 @@ def _select_split_indices(
                 f"got class counts {dict(class_counts)}."
             )
         else:
-            splitter = StratifiedGroupKFold(
-                n_splits=n_splits,
-                shuffle=True,
-                random_state=random_state,
-            )
             try:
-                train_indices, val_indices = next(
-                    splitter.split(X=[[0]] * len(labels), y=labels, groups=breast_ids)
-                )
-                return (
-                    list(train_indices),
-                    list(val_indices),
-                    "stratified_group_holdout",
-                    fallback_info,
+                fold_by_index = _materialize_stratified_group_folds(
+                    labels=labels,
+                    breast_ids=breast_ids,
+                    n_splits=n_splits,
+                    random_state=random_state,
                 )
             except ValueError as exc:
                 fallback_info["used_fallback"] = True
                 fallback_info["reason"] = str(exc)
+            else:
+                val_fold = 0
+                train_indices = sorted(index for index, fold in fold_by_index.items() if fold != val_fold)
+                val_indices = sorted(index for index, fold in fold_by_index.items() if fold == val_fold)
+                return {
+                    "train_indices": train_indices,
+                    "val_indices": val_indices,
+                    "split_strategy": "stratified_group_holdout",
+                    "fallback": fallback_info,
+                    "fold_assignment": {
+                        "available": True,
+                        "fold_by_index": fold_by_index,
+                        "num_folds": n_splits,
+                        "val_fold": val_fold,
+                        "train_folds": [fold for fold in range(n_splits) if fold != val_fold],
+                        "train_val_derived_from_assignment": True,
+                    },
+                }
 
     splitter = GroupShuffleSplit(n_splits=1, test_size=val_ratio, random_state=random_state)
     try:
@@ -325,7 +395,139 @@ def _select_split_indices(
     except ValueError as exc:
         raise SplitBuildError(f"Failed to build group split: {exc}") from exc
 
-    return list(train_indices), list(val_indices), "group_shuffle_holdout", fallback_info
+    return {
+        "train_indices": list(train_indices),
+        "val_indices": list(val_indices),
+        "split_strategy": "group_shuffle_holdout",
+        "fallback": fallback_info,
+        "fold_assignment": empty_fold_assignment,
+    }
+
+
+def _materialize_stratified_group_folds(
+    labels: list[int],
+    breast_ids: list[str],
+    n_splits: int,
+    random_state: int,
+) -> dict[int, int]:
+    splitter = StratifiedGroupKFold(
+        n_splits=n_splits,
+        shuffle=True,
+        random_state=random_state,
+    )
+    fold_by_index: dict[int, int] = {}
+    for fold_index, (_, val_indices) in enumerate(
+        splitter.split(X=[[0]] * len(labels), y=labels, groups=breast_ids)
+    ):
+        for val_index in val_indices:
+            fold_by_index[int(val_index)] = fold_index
+
+    if len(fold_by_index) != len(labels):
+        raise SplitBuildError(
+            "StratifiedGroupKFold did not assign every breast_id to a fold.",
+            {
+                "assigned": len(fold_by_index),
+                "expected": len(labels),
+            },
+        )
+    return fold_by_index
+
+
+def _build_fold_assignment_rows(
+    paired_rows: list[dict[str, str]],
+    paired_labels: list[int],
+    image_counts_by_breast: Counter[str],
+    fold_assignment_meta: dict[str, Any],
+) -> list[dict[str, str]]:
+    if not fold_assignment_meta["available"]:
+        return []
+
+    rows: list[dict[str, str]] = []
+    fold_by_index = fold_assignment_meta["fold_by_index"]
+    for index, row in enumerate(paired_rows):
+        breast_id = row["breast_id"]
+        rows.append(
+            {
+                "breast_id": breast_id,
+                "fold": str(fold_by_index[index]),
+                "target": str(paired_labels[index]),
+                "num_images": str(int(image_counts_by_breast[breast_id])),
+            }
+        )
+
+    rows.sort(key=lambda item: item["breast_id"])
+    return rows
+
+
+def _build_fold_summary(
+    fold_assignment_rows: list[dict[str, str]],
+    num_folds: int,
+    requested_stratified: bool,
+    fallback_info: dict[str, Any],
+    val_fold: int | None,
+    train_folds: list[int],
+    train_val_derived_from_fold_assignment: bool,
+) -> dict[str, Any]:
+    if not fold_assignment_rows:
+        warning = "Fold assignment unavailable because split used fallback group holdout."
+        if not fallback_info["used_fallback"]:
+            warning = "Fold assignment unavailable for the current split configuration."
+        return {
+            "total_breasts": 0,
+            "fold_count": 0,
+            "is_stratified": False,
+            "used_fallback": bool(fallback_info["used_fallback"]),
+            "fallback_reason": fallback_info["reason"],
+            "val_fold": val_fold,
+            "train_folds": list(train_folds),
+            "train_val_derived_from_fold_assignment": train_val_derived_from_fold_assignment,
+            "folds": [],
+            "warnings": [warning],
+        }
+
+    folds: list[dict[str, Any]] = []
+    warnings: list[str] = []
+    rows_by_fold: dict[int, list[dict[str, str]]] = {fold: [] for fold in range(num_folds)}
+    for row in fold_assignment_rows:
+        rows_by_fold[int(row["fold"])].append(row)
+
+    for fold in range(num_folds):
+        fold_rows = rows_by_fold[fold]
+        breast_count = len(fold_rows)
+        image_count = sum(int(row["num_images"]) for row in fold_rows)
+        malignant_count = sum(int(row["target"]) for row in fold_rows)
+        non_malignant_count = breast_count - malignant_count
+        malignant_ratio = None if breast_count == 0 else float(malignant_count / breast_count)
+        fold_warnings: list[str] = []
+        if breast_count == 0:
+            fold_warnings.append(f"Fold {fold} is empty.")
+        if breast_count > 0 and (malignant_count == 0 or non_malignant_count == 0):
+            fold_warnings.append(f"Fold {fold} has an extremely imbalanced label distribution.")
+        warnings.extend(fold_warnings)
+        folds.append(
+            {
+                "fold": fold,
+                "breast_count": breast_count,
+                "image_count": image_count,
+                "malignant_count": malignant_count,
+                "non_malignant_count": non_malignant_count,
+                "malignant_ratio": malignant_ratio,
+                "warnings": fold_warnings,
+            }
+        )
+
+    return {
+        "total_breasts": len(fold_assignment_rows),
+        "fold_count": num_folds,
+        "is_stratified": requested_stratified and not fallback_info["used_fallback"],
+        "used_fallback": bool(fallback_info["used_fallback"]),
+        "fallback_reason": fallback_info["reason"],
+        "val_fold": val_fold,
+        "train_folds": list(train_folds),
+        "train_val_derived_from_fold_assignment": train_val_derived_from_fold_assignment,
+        "folds": folds,
+        "warnings": warnings,
+    }
 
 
 def _infer_n_splits(val_ratio: float) -> tuple[int | None, str]:
@@ -352,6 +554,9 @@ def _build_checks(
     val_breast_ids: set[str],
     requested_stratified: bool,
     fallback_info: dict[str, Any],
+    fold_assignment_meta: dict[str, Any],
+    fold_assignment_rows: list[dict[str, str]],
+    fold_summary: dict[str, Any],
 ) -> dict[str, Any]:
     overlap = sorted(train_breast_ids & val_breast_ids)
     covered_paired_ids = train_breast_ids | val_breast_ids
@@ -366,6 +571,34 @@ def _build_checks(
         empty_sides.append("train")
     if not paired_val_rows or not single_val_rows:
         empty_sides.append("val")
+
+    if fold_assignment_rows:
+        assignment_breast_ids = [row["breast_id"] for row in fold_assignment_rows]
+        duplicate_assignment_ids = [
+            breast_id
+            for breast_id, count in sorted(Counter(assignment_breast_ids).items())
+            if count > 1
+        ]
+        assigned_fold_values = sorted({int(row["fold"]) for row in fold_assignment_rows})
+        expected_fold_values = list(range(fold_assignment_meta["num_folds"]))
+        empty_folds = [fold for fold in expected_fold_values if fold not in assigned_fold_values]
+        expected_val_ids = {
+            row["breast_id"]
+            for row in fold_assignment_rows
+            if int(row["fold"]) == fold_assignment_meta["val_fold"]
+        }
+        expected_train_ids = {
+            row["breast_id"]
+            for row in fold_assignment_rows
+            if int(row["fold"]) != fold_assignment_meta["val_fold"]
+        }
+    else:
+        duplicate_assignment_ids = []
+        assigned_fold_values = []
+        expected_fold_values = []
+        empty_folds = []
+        expected_val_ids = set()
+        expected_train_ids = set()
 
     return {
         "breast_id_leakage": {
@@ -397,6 +630,32 @@ def _build_checks(
         "non_empty_split": {
             "ok": not empty_sides,
             "empty_sides": empty_sides,
+        },
+        "fold_assignment_unique": {
+            "ok": not duplicate_assignment_ids and (not fold_assignment_rows or len(assignment_breast_ids) == len(all_paired_ids)),
+            "available": bool(fold_assignment_rows),
+            "duplicate_breast_ids": duplicate_assignment_ids,
+            "assigned_breasts": len(fold_assignment_rows),
+            "expected_breasts": len(all_paired_ids),
+        },
+        "fold_distribution_non_empty": {
+            "ok": not fold_assignment_rows or not empty_folds,
+            "available": bool(fold_assignment_rows),
+            "assigned_folds": assigned_fold_values,
+            "expected_folds": expected_fold_values,
+            "empty_folds": empty_folds,
+        },
+        "train_val_matches_fold_assignment": {
+            "ok": not fold_assignment_rows or (expected_train_ids == train_breast_ids and expected_val_ids == val_breast_ids),
+            "available": bool(fold_assignment_rows),
+            "val_fold": fold_assignment_meta["val_fold"],
+            "train_folds": list(fold_assignment_meta["train_folds"]),
+            "train_val_derived_from_fold_assignment": fold_assignment_meta["train_val_derived_from_assignment"],
+        },
+        "fold_label_distribution": {
+            "ok": True,
+            "available": bool(fold_assignment_rows),
+            "warnings": list(fold_summary["warnings"]),
         },
         "strategy_fallback": {
             "ok": True,

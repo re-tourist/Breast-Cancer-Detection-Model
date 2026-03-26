@@ -1,4 +1,4 @@
-﻿"""Public data indexing and loading interface for Stage 1."""
+"""Public data indexing and loading interface for Stage 1."""
 
 from .datasets import (
     DEFAULT_ARCHIVE_PATH,
@@ -16,6 +16,7 @@ from .index_builder import (
 )
 from .splits import (
     DEFAULT_SPLIT_DIR,
+    FOLD_ASSIGNMENT_FIELDS,
     SplitBuildError,
     build_split_summary,
     build_train_val_split,
@@ -26,6 +27,7 @@ from .transforms import MammographyTransform, build_eval_transform, build_train_
 __all__ = [
     "SINGLE_IMAGE_FIELDS",
     "PAIRED_BREAST_FIELDS",
+    "FOLD_ASSIGNMENT_FIELDS",
     "build_single_image_index",
     "build_paired_breast_index",
     "build_index_report",
