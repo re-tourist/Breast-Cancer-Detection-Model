@@ -112,7 +112,7 @@ python scripts/run_eval.py --checkpoint outputs/m1_baseline/best_model.pt --imag
   - 结果文件包含 `breast_id / target / prediction`
   - 逻辑是独立模块，可直接给 M2 复用
 - 路径差异说明：
-  - 仓库里没有 `docs/plan/issue_stage1.md`，本次按你的要求使用了等价文档 [docs/gitflow/issue/issue_stage1.md](d:/MyProject/Breast-Cancer-Detection-Model/docs/gitflow/issue/issue_stage1.md)
+- 仓库里已有 `docs/plan/issue_stage1.md`，本次按你的要求使用了 [docs/plan/issue_stage1.md](D:/MyProject/Breast-Cancer-Detection-Model/docs/plan/issue_stage1.md)
 - 范围控制说明：
   - 没有重构整个 trainer
   - 没有引入复杂 evaluator framework

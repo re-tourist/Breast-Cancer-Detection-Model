@@ -85,7 +85,7 @@ Dataset indexes built successfully
 
 9. 假设、限制或待确认点
 - `docs/plan/minimal_system_design.md` 存在并已遵守。
-- `docs/plan/issue_stage1.md` 不存在；按你的规则改读了等价文档 [docs/gitflow/issue/issue_stage1.md](D:/MyProject/Breast-Cancer-Detection-Model/docs/gitflow/issue/issue_stage1.md)。
+- `docs/plan/issue_stage1.md` 已存在；按你的规则改读了 [docs/plan/issue_stage1.md](D:/MyProject/Breast-Cancer-Detection-Model/docs/plan/issue_stage1.md)。
 - 文档假设 vs 实际仓库有一处差异：实际原始字段名是 `cc_mlo`、`l_r`，且没有独立 `image_id` 列，所以实现里做了显式字段映射并由 `image_path` 派生 `image_id`。
 - 当前仓库没有已解压的 `train_img/` 目录，所以“路径存在性”检查按 `train_img.zip` 成员表完成，没有把文件系统解压路径设成当前 issue 的前提。
 - `lesion_type`、`difficult`、`annotations` 在同一 `breast_id` 内并不总是稳定，所以只保留在 single-image index，没有升格到 paired index。

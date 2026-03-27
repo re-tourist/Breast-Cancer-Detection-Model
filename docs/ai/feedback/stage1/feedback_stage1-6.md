@@ -112,6 +112,6 @@ python scripts/run_stage1_smoke.py
 - Acceptance Criteria：闭环已完整跑通；breast-level AUROC 已实际生成；报告里给了明确 sanity 判断，而不是只写“跑过了”；也明确指出了当前的基础问题是输出接近常数、效果不可信
 
 路径适配说明：
-- 本次权威 issue 文档实际使用的是 [docs/gitflow/issue/issue_stage1.md](d:/MyProject/Breast-Cancer-Detection-Model/docs/gitflow/issue/issue_stage1.md)
+- 本次权威 issue 文档实际使用的是 [docs/plan/issue_stage1.md](D:/MyProject/Breast-Cancer-Detection-Model/docs/plan/issue_stage1.md)
 - sanity report 放在 `outputs/m1_smoke/` 而不是 `docs/reports/`，这是有意保持它作为一次运行产物，和现有 `outputs/m1_baseline/` 风格一致
 - 本次没有重构 trainer 或 eval 框架，只加了最小胶水层，未越界到 Issue 1.7 的文档整理工作

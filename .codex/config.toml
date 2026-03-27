@@ -1,0 +1,41 @@
+# .codex/config.toml
+# Project-scoped Codex defaults for this repository.
+# Keep this file conservative and durable.
+
+model = "gpt-5.4"
+model_reasoning_effort = "high"
+
+# Instruction discovery
+project_root_markers = [".git"]
+project_doc_fallback_filenames = ["TEAM_GUIDE.md", ".agents.md"]
+project_doc_max_bytes = 65536
+
+# Approval / sandbox defaults
+approval_policy = "on-request"
+sandbox_mode = "workspace-write"
+
+# Recommended default profile behavior
+hide_agent_reasoning = true
+
+[profiles.default]
+model_reasoning_effort = "high"
+approval_policy = "on-request"
+sandbox_mode = "workspace-write"
+
+[profiles.safe_review]
+model_reasoning_effort = "medium"
+approval_policy = "never"
+sandbox_mode = "read-only"
+
+[agents]
+default = "implementer"
+
+# Example project-scoped custom subagents
+# Files live under .codex/agents/
+# Use them explicitly when needed.
+
+[tools]
+web_search = true
+
+[ui]
+show_tips = true

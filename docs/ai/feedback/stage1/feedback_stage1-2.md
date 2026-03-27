@@ -120,7 +120,7 @@ Batch 0
 
 10. 假设、限制或待确认点
 
-- `docs/plan/issue_stage1.md` 仍不存在；本次按你的规则使用了等价文档 [docs/gitflow/issue/issue_stage1.md](D:/MyProject/Breast-Cancer-Detection-Model/docs/gitflow/issue/issue_stage1.md)。
+- `docs/plan/issue_stage1.md` 已存在；本次按你的规则使用了 [docs/plan/issue_stage1.md](D:/MyProject/Breast-Cancer-Detection-Model/docs/plan/issue_stage1.md)。
 - 当前仓库没有 `data/interim/primary/train_img/...` 解压图目录，所以主读图路径是 zip；`image_root` 只是后续速度优化接口。
 - 方向统一没有用启发式图像规则，而是严格基于 Issue 1.1 索引中的 `laterality` 字段：只有 `R` 才水平翻转。
 - 原始 JPEG 文件是 RGB 存储，但采样检查三个通道数值一致，所以本实现先灰度化，再按需复制到 3 通道。

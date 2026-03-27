@@ -104,6 +104,6 @@ Interpretation:
 - Acceptance Criteria：现在新成员或未来自己可以根据文档快速找到 M1 产物、知道怎么跑最小 pipeline、知道 M1 做到了什么和没做到什么，而且文档内容已经从原先的 Stage 0 状态修正为和当前代码/产物一致
 
 路径差异说明：
-- 本次权威 issue 文档使用的是 [docs/gitflow/issue/issue_stage1.md](d:/MyProject/Breast-Cancer-Detection-Model/docs/gitflow/issue/issue_stage1.md)
+- 本次权威 issue 文档使用的是 [docs/plan/issue_stage1.md](D:/MyProject/Breast-Cancer-Detection-Model/docs/plan/issue_stage1.md)
 - 之前 README 停留在 Stage 0，这次已经按实际代码状态修正
 - 这次没有越界到 M2 方案设计，也没有改训练/评估逻辑，只做了文档同步和交接说明

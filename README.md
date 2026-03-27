@@ -75,6 +75,13 @@ Notes:
 - do not edit raw files in place
 - `requirements.txt` is still not curated for Stage 1, so dependency locking remains a follow-up item
 
+## Workflow
+
+The canonical workflow for this repository lives in [docs/ai/WORKFLOW_GUIDE.md](docs/ai/WORKFLOW_GUIDE.md).
+Use [AGENTS.md](AGENTS.md) for repo-level operating rules and [docs/ai/PROJECT_CONTEXT.md](docs/ai/PROJECT_CONTEXT.md) for project intent and stage boundaries.
+
+When these docs conflict, follow the canonical workflow and the current project context.
+
 ## Minimal Usage
 
 If the processed artifacts already exist, you can start from training or smoke. Otherwise, the minimal Stage 1 flow is:
