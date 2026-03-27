@@ -3,17 +3,18 @@
 ## Purpose
 
 - Repo-level operating manual for AI coding agents working in this repository.
-- This is a single-package Python project for breast cancer detection work: Stage 1 established a minimal runnable pipeline, and the repo is now transitioning into Stage 2 planning for a stronger breast-level baseline.
+- This is a single-package Python project for breast cancer detection work: Stage 1 established a minimal runnable pipeline, and the repo is now in active Stage 2 execution for a stricter paired breast-level baseline.
 - Use this file for durable execution rules. Use `README.md` and `docs/` for human-oriented project context.
 
 ## Current Boundary
 
-- Treat the repository as a Stage 1 foundation with an active Stage 2 planning boundary:
+- Treat the repository as a Stage 1 foundation with an active Stage 2 execution boundary:
   - dataset inspection and indexing
   - `breast_id`-grouped split generation
   - the current single-image fallback path
   - breast-level aggregation and evaluation
   - smoke-tested artifact generation
+  - the strict paired CC/MLO Stage 2 baseline path
 - For M2-style paired-baseline changes, follow the active Stage 2 plan, issue breakdown, and contract freeze instead of improvising.
 
 ## Read First
@@ -66,6 +67,7 @@ High-frequency entrypoints:
 - `scripts/train_baseline.py`
 - `scripts/run_eval.py`
 - `scripts/run_stage1_smoke.py`
+- `scripts/run_stage2_smoke.py`
 
 ## Environment And Commands
 
@@ -95,6 +97,9 @@ python scripts/run_eval.py --checkpoint outputs/m1_baseline/best_model.pt --imag
 # run the end-to-end Stage 1 smoke flow
 python scripts/run_stage1_smoke.py
 
+# run the end-to-end Stage 2 paired smoke flow
+python scripts/run_stage2_smoke.py
+
 # targeted tests
 python -m unittest tests.test_index_builder
 python -m unittest tests.test_datasets
@@ -103,6 +108,7 @@ python -m unittest tests.test_split_fold_assignment
 python -m unittest tests.test_eval
 python -m unittest tests.test_training_smoke
 python -m unittest tests.test_stage1_smoke
+python -m unittest tests.test_stage2_smoke
 
 # full regression
 python -m unittest
@@ -124,6 +130,7 @@ python -m unittest
 
 - The project task is breast-level malignant probability prediction.
 - The current training path is single-image, but validation and reporting are breast-level. Preserve that distinction unless the task explicitly changes it.
+- The current repository also contains a Stage 2 paired breast-level path. In paired mode, keep strict complete `(CC, MLO)` semantics, fixed `(CC, MLO)` ordering, and probability-valued exports.
 - Splits must remain `breast_id`-grouped. Never introduce image-level leakage between train and validation.
 - Keep all dataset and artifact paths repo-relative. Do not hardcode personal filesystem paths.
 - `data/processed/` and `outputs/` are script-owned outputs. If filenames or schemas change, update every reader, writer, and affected test in the same change.
@@ -168,7 +175,7 @@ A change is done only when all applicable items below are true:
   - dataset or transform changes: `tests.test_datasets` and/or `scripts/check_dataset_loading.py`
   - evaluation changes: `tests.test_eval`
   - training loop changes: `tests.test_training_smoke`
-  - end-to-end train/eval script changes: `tests.test_stage1_smoke`
+  - end-to-end train/eval script changes: `tests.test_stage1_smoke` and/or `tests.test_stage2_smoke`
   - broad or cross-cutting changes: `python -m unittest`
 - If paths, artifact names, task definition, or data conventions changed, the related docs were updated in the same change.
 - The final report states exactly what changed, what was run, and what remains unverified.

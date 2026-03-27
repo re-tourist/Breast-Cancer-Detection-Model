@@ -4,42 +4,45 @@
 
 This repository is a course project for breast cancer detection from mammography images.
 
-The repository is currently in Stage 1: a minimal runnable pipeline is in place for the breast-level malignant probability task.
+The repository is now in active Stage 2 execution for the breast-level malignant probability task.
 
 Current status:
-- Stage 1 data indexing, grouped split, training, evaluation, and smoke-test scripts are implemented
-- the current runnable baseline trains on single-image inputs and reports breast-level metrics through aggregation
-- breast-level evaluation artifacts and one end-to-end smoke report are available under `outputs/`
-- the current outputs only show that the pipeline runs end to end; they do not yet indicate a strong baseline
+- Stage 1 data indexing, grouped split, evaluation, and smoke-test infrastructure remain in place
+- Stage 1 single-image training remains available as a fallback path
+- Stage 2 paired CC/MLO training, direct breast-level evaluation, and a dedicated Stage 2 smoke script are implemented
+- the paired contract is frozen to strict complete `(CC, MLO)` samples, fixed `(CC, MLO)` ordering, and probability-valued `prediction` exports
+- a full real-data Stage 2 baseline run at `1024` resolution is still pending on the Linux training environment
 
 ## Current Stage and Scope
 
 In scope for the current repository state:
-- reproducible data indexing and paired breast-level sample definitions
+- reproducible data indexing and strict paired breast-level sample definitions
 - lightweight preprocessing and dataset loading
 - `breast_id`-grouped split artifacts and fold assignment
-- a minimal single-image baseline train/val loop
-- minimal breast-level aggregation and evaluation artifacts
-- one end-to-end smoke test and sanity report
+- Stage 1 single-image fallback training and aggregated evaluation
+- Stage 2 paired CC/MLO breast-level training and direct breast-level evaluation
+- Stage 1 and Stage 2 smoke-test scripts and sanity reports
 
 Out of scope for the current stage:
-- paired dual-branch training as the mainline baseline
-- cross-validation training orchestration
+- changing the task definition, split protocol, or Stage 2 frozen contract
+- full cross-validation training orchestration
 - hyperparameter search and benchmark tuning
 - heavy evaluator or experiment-management frameworks
-- Milestone 2 model upgrades
+- claiming a strong Stage 2 baseline before the formal server run is complete
 
 ## Repository Structure
 
 - `src/data/`: dataset index building, transforms, datasets, and grouped split utilities
-- `src/models/`: the minimal single-image baseline model
+- `src/models/`: single-image fallback model and paired Stage 2 baseline model
 - `src/train/`: train/val loop, checkpoint selection, and metric summary logic
-- `src/eval/`: breast-level aggregation, AUROC calculation, and evaluation artifact writing
-- `scripts/`: runnable Stage 1 entry points
+- `src/eval/`: breast-level aggregation, AUROC calculation, paired prediction collection, and evaluation artifact writing
+- `scripts/`: runnable Stage 1 and Stage 2 entry points
 - `data/processed/metadata/`: generated dataset index artifacts
 - `data/processed/splits/`: generated split and fold assignment artifacts
-- `outputs/m1_baseline/`: baseline training outputs and evaluation artifacts
-- `outputs/m1_smoke/`: end-to-end smoke logs, outputs, and sanity report
+- `outputs/m1_baseline/`: single-image fallback outputs and evaluation artifacts
+- `outputs/m2_baseline/`: paired Stage 2 baseline outputs and evaluation artifacts
+- `outputs/m1_smoke/`: Stage 1 smoke logs, outputs, and sanity report
+- `outputs/m2_smoke/`: Stage 2 smoke logs, outputs, and sanity report
 
 ## Data Organization
 
@@ -51,40 +54,43 @@ Required raw inputs:
 - `test_img.zip`
 - `name_sid_submission.csv`
 
-Generated Stage 1 artifacts live under:
+Generated artifacts live under:
 - `data/processed/metadata/`
 - `data/processed/splits/`
 - `outputs/m1_baseline/`
+- `outputs/m2_baseline/`
 - `outputs/m1_smoke/`
+- `outputs/m2_smoke/`
 
-See `data/README.md` for the data layout rules and `docs/handoff/stage1_handoff.md` for the Stage 1 artifact map.
+See `data/README.md` for the data layout rules, `docs/handoff/stage1_handoff.md` for the Stage 1 artifact map, and `docs/handoff/stage2_closeout.md` for the current Stage 2 execution status.
 
 ## Environment and Setup
 
 Recommended:
 - Python 3.10 or newer
 
-Current Stage 1 scripts require the runtime environment to provide:
+Current scripts require the runtime environment to provide:
 - `numpy`
 - `Pillow`
 - `torch`
+- `torchvision`
 - `scikit-learn`
 
 Notes:
 - keep the provided raw dataset files under `data/raw/primary/`
 - do not edit raw files in place
-- `requirements.txt` is still not curated for Stage 1, so dependency locking remains a follow-up item
+- `requirements.txt` is still not curated, so dependency locking remains a follow-up item
 
 ## Workflow
 
 The canonical workflow for this repository lives in [docs/ai/WORKFLOW_GUIDE.md](docs/ai/WORKFLOW_GUIDE.md).
-Use [AGENTS.md](AGENTS.md) for repo-level operating rules and [docs/ai/PROJECT_CONTEXT.md](docs/ai/PROJECT_CONTEXT.md) for project intent and stage boundaries.
+Use [AGENTS.md](AGENTS.md) for repo-level operating rules and [docs/ai/PROJECT_CONTEXT.md](docs/ai/PROJECT_CONTEXT.md) for current project intent and stage boundaries.
 
 When these docs conflict, follow the canonical workflow and the current project context.
 
 ## Minimal Usage
 
-If the processed artifacts already exist, you can start from training or smoke. Otherwise, the minimal Stage 1 flow is:
+If the processed artifacts already exist, you can start from training, evaluation, or smoke. Otherwise, the minimal repository flow is:
 
 1. Build dataset indexes:
 
@@ -98,45 +104,60 @@ python scripts/build_dataset_index.py
 python scripts/build_splits.py
 ```
 
-3. Train the minimal baseline:
+3. Check paired dataset loading:
 
 ```bash
-python scripts/train_baseline.py --epochs 1 --batch-size 8 --image-size 512
+python scripts/check_dataset_loading.py --dataset paired --batch-size 2 --num-batches 1
 ```
 
-4. Run breast-level evaluation from the validation split:
+4. Train the Stage 1 single-image fallback:
 
 ```bash
-python scripts/run_eval.py --checkpoint outputs/m1_baseline/best_model.pt --image-size 512 --output-dir outputs/m1_baseline/eval
+python scripts/train_baseline.py --dataset single --epochs 1 --batch-size 8 --image-size 512
 ```
 
-5. Run the end-to-end smoke test and generate a sanity report:
+5. Train the Stage 2 paired baseline:
+
+```bash
+python scripts/train_baseline.py --dataset paired --image-size 1024 --epochs 10 --output-dir outputs/m2_baseline
+```
+
+6. Run evaluation from a checkpoint:
+
+```bash
+python scripts/run_eval.py --dataset paired --checkpoint outputs/m2_baseline/best_model.pt --image-size 1024 --output-dir outputs/m2_baseline/eval
+```
+
+7. Run the dedicated smoke scripts:
 
 ```bash
 python scripts/run_stage1_smoke.py
+python scripts/run_stage2_smoke.py
 ```
 
-For a fuller Stage 1 runbook and artifact map, read `docs/handoff/stage1_handoff.md`. For the milestone closeout state and M2 handoff priorities, read `docs/handoff/stage1_closeout.md`.
+For a fuller Stage 1 runbook and artifact map, read `docs/handoff/stage1_handoff.md`.
+For the Stage 1 foundation closeout, read `docs/handoff/stage1_closeout.md`.
+For the current Stage 2 engineering closeout and remaining risks, read `docs/handoff/stage2_closeout.md`.
 
 ## Current Progress
 
 - dataset indexes exist for both single-image and paired breast-level views
-- minimal preprocessing and dataset loading are implemented
 - grouped train/val splits and 5-fold assignment artifacts are generated by `breast_id`
-- a minimal single-image training loop and checkpoint selection flow are implemented
-- breast-level aggregation and AUROC evaluation artifacts are implemented
-- an end-to-end smoke script records one sanity run and its findings
+- a single-image fallback training loop and checkpoint selection flow remain available
+- a paired EfficientNet-B2 baseline now trains one `breast_id` sample at a time from fixed `(CC, MLO)` inputs
+- single-image evaluation still writes image-level and breast-level artifacts
+- paired evaluation writes only `breast_level_predictions.csv` and `breast_level_metrics.json`
+- Stage 1 and Stage 2 smoke scripts both produce logs and markdown sanity reports
 
 ## Current Limitations
 
-- the training path is still a single-image baseline, not the intended paired breast-level baseline
-- the current smoke run shows weak, tightly clustered predictions and should not be treated as a meaningful performance result
-- fold assignment artifacts exist, but there is no full cross-validation training runner yet
-- dependency packaging is still lightweight and not yet cleaned up for handoff outside the current environment
+- the formal Stage 2 baseline result still depends on a Linux server run at `1024` resolution
+- local smoke and unit tests only prove plumbing and contract correctness; they do not prove final model quality
+- full cross-validation training is still not implemented as a mainline runner
+- dependency packaging remains lightweight and not yet cleaned up for broader handoff
 
 ## Next Steps
 
-- use the Stage 1 artifacts as the starting point for Milestone 2 baseline work
-- prioritize a stronger breast-level modeling path over further polishing the current single-image fallback
-- diagnose and reduce prediction-collapse risk before treating validation numbers as informative
-
+1. Run the formal Stage 2 baseline on the Linux training environment with the frozen paired contract.
+2. Review `outputs/m2_baseline/` and `outputs/m2_baseline/eval/` for collapse risk, metric quality, and artifact integrity.
+3. Decide whether Stage 2 can be closed cleanly or should roll directly into the next paired-baseline improvement milestone.

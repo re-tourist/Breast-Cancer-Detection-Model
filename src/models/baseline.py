@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import torch
 from torch import nn
+from torchvision import models
 
 
 class ConvBlock(nn.Module):
@@ -40,3 +41,35 @@ class MinimalSingleImageCNN(nn.Module):
         x = self.features(x)
         x = torch.flatten(x, start_dim=1)
         return self.classifier(x).squeeze(1)
+
+
+class PairedEfficientNetB2Baseline(nn.Module):
+    """Shared-backbone paired baseline with fixed `(CC, MLO)` late fusion."""
+
+    def __init__(
+        self,
+        weights: models.EfficientNet_B2_Weights | None = None,
+        dropout: float = 0.2,
+    ) -> None:
+        super().__init__()
+        encoder = models.efficientnet_b2(weights=weights)
+        self.features = encoder.features
+        self.avgpool = encoder.avgpool
+        feature_dim = encoder.classifier[1].in_features
+        self.classifier = nn.Sequential(
+            nn.Linear(feature_dim * 3, feature_dim),
+            nn.ReLU(inplace=True),
+            nn.Dropout(p=dropout),
+            nn.Linear(feature_dim, 1),
+        )
+
+    def encode_view(self, x: torch.Tensor) -> torch.Tensor:
+        x = self.features(x)
+        x = self.avgpool(x)
+        return torch.flatten(x, start_dim=1)
+
+    def forward(self, x_cc: torch.Tensor, x_mlo: torch.Tensor) -> torch.Tensor:
+        f_cc = self.encode_view(x_cc)
+        f_mlo = self.encode_view(x_mlo)
+        fused = torch.cat((f_cc, f_mlo, torch.abs(f_cc - f_mlo)), dim=1)
+        return self.classifier(fused).squeeze(1)
