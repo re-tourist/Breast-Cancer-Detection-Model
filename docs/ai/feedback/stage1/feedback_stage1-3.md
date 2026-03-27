@@ -93,7 +93,7 @@ Split artifacts built successfully
 
 10. 明确说明有哪些假设、限制或待确认点
 
-- `docs/plan/issue_stage1.md` 仍不存在；本次按你的要求使用了等价文档 [issue_stage1.md](d:/MyProject/Breast-Cancer-Detection-Model/docs/gitflow/issue/issue_stage1.md)。
+- `docs/plan/issue_stage1.md` 已存在；本次按你的要求使用了 [docs/plan/issue_stage1.md](D:/MyProject/Breast-Cancer-Detection-Model/docs/plan/issue_stage1.md)。
 - 默认策略是 `StratifiedGroupKFold(n_splits=5, shuffle=True, random_state=42)` 取首个 fold 作为 val；这是单次 holdout 产物，不是 k-fold 框架。
 - 只有当 `val_ratio` 不适合该 stratified 方案，或类别样本不足时，才明确回退到 `GroupShuffleSplit`，并把原因写进 summary。
 - split CSV 没有新增 `split` 列，而是靠文件名区分 train / val；这是有意保持 schema 与 Issue 1.1 索引一致，便于直接复用现有 dataset loader。

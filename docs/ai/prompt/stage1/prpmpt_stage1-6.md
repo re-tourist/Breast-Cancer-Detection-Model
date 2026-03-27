@@ -1,12 +1,12 @@
 你现在继续为乳腺癌检测课程项目实现 Milestone 1 的 Issue 1.6。
 
 当前唯一权威的 issue 定义来源是：
-- docs/gitflow/issue/issue_stage1.md
+- docs/plan/issue_stage1.md
 请先阅读并严格遵守其中对 Issue 1.6 的定义，不要自行改写 issue 目标。
 
 你还必须结合以下现有实现：
 1. docs/plan/minimal_system_design.md
-2. docs/gitflow/issue/issue_stage1.md 中 Issue 1.6 的原始要求
+ 2. docs/plan/issue_stage1.md 中 Issue 1.6 的原始要求
 3. 已完成的 Issue 1.1–1.5 相关代码与脚本
 4. data/processed/metadata/ 下的 index artifacts
 5. data/processed/splits/ 下的 split / fold artifacts

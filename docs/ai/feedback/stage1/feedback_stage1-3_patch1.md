@@ -103,4 +103,4 @@ breast_id,fold,target,num_images
 - single train `1040` / val `260`
 - 只是在此基础上补充了 650 行完整 fold assignment 和 5-fold summary。
 - 这次没有改 dataset / trainer / dataloader，没有扩展成 cross-validation 训练框架。
-- `docs/plan/issue_stage1.md` 仍不存在，本次继续按要求使用 [docs/gitflow/issue/issue_stage1.md](d:/MyProject/Breast-Cancer-Detection-Model/docs/gitflow/issue/issue_stage1.md) 作为等价文档。
+- `docs/plan/issue_stage1.md` 已存在，本次继续按要求使用 [docs/plan/issue_stage1.md](d:/MyProject/Breast-Cancer-Detection-Model/docs/plan/issue_stage1.md) 作为等价文档。

@@ -70,7 +70,7 @@ Training finished successfully
 - 这次只改了训练阶段的 checkpoint 选择和 summary 记录，没有新建 evaluator framework。
 - 没有新增 breast-level prediction CSV/JSON artifact。
 - 没有改模型、dataset、split、transform 主体逻辑。
-- `docs/plan/issue_stage1.md` 仍不存在，本次继续按要求使用 [docs/gitflow/issue/issue_stage1.md](d:/MyProject/Breast-Cancer-Detection-Model/docs/gitflow/issue/issue_stage1.md) 作为等价文档。
+- `docs/plan/issue_stage1.md` 已存在，本次继续按要求使用 [docs/plan/issue_stage1.md](D:/MyProject/Breast-Cancer-Detection-Model/docs/plan/issue_stage1.md) 作为等价文档。
 - 已实际验证：
 - `python -m unittest tests.test_index_builder tests.test_datasets tests.test_splits tests.test_training_smoke`
 - `python scripts/train_baseline.py --epochs 1 --batch-size 8 --image-size 512 --output-dir outputs/m1_baseline`

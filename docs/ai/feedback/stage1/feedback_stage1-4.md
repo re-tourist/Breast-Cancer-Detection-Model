@@ -120,7 +120,7 @@ python scripts/train_baseline.py --epochs 1 --batch-size 8 --image-size 512
 
 10. 明确说明有哪些假设、限制或待确认点
 
-- `docs/plan/issue_stage1.md` 仍不存在；这次继续按你的规则使用了 [issue_stage1.md](d:/MyProject/Breast-Cancer-Detection-Model/docs/gitflow/issue/issue_stage1.md)。
+- `docs/plan/issue_stage1.md` 已存在；这次继续按你的规则使用了 [docs/plan/issue_stage1.md](D:/MyProject/Breast-Cancer-Detection-Model/docs/plan/issue_stage1.md)。
 - 当前环境实际只有 CPU，所以真实 smoke 用了 `--image-size 512`；代码默认值仍保留 `1024`，但在 CPU 上会更慢。
 - 当前 baseline 是 single-image image-level 训练闭环，不是 paired breast-level 主线训练。
 - 我补了轻量的 `breast_id` mean aggregation 验证指标，但没有引入完整 evaluator 框架，没有越界到 Issue 1.5。
