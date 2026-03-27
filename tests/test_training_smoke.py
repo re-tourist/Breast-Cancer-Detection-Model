@@ -16,14 +16,17 @@ import torch
 from PIL import Image
 from torch import nn
 
-from src.data import SINGLE_IMAGE_FIELDS
+from src.data import PAIRED_BREAST_FIELDS, SINGLE_IMAGE_FIELDS
 from src.models.baseline import MinimalSingleImageCNN
 from src.train.trainer import (
+    DEFAULT_PAIRED_AUTO_SELECTION_METRICS,
     build_single_image_loaders,
+    build_paired_breast_loaders,
     fit,
     is_better_selection,
     resolve_selection_metric,
     validate_one_epoch,
+    validate_one_epoch_paired,
 )
 
 
@@ -143,6 +146,36 @@ class TrainingSmokeTestCase(unittest.TestCase):
         self.assertTrue(selection["fallback_used"])
         self.assertIn("image_auroc unavailable", selection["fallback_reason"])
 
+    def test_paired_auto_selection_prefers_breast_auroc(self) -> None:
+        selection = resolve_selection_metric(
+            {
+                "val_loss": 0.6,
+                "breast_auroc": 0.78,
+            },
+            selection_metric="auto",
+            auto_metric_preferences=DEFAULT_PAIRED_AUTO_SELECTION_METRICS,
+        )
+
+        self.assertEqual(selection["metric_name"], "breast_auroc")
+        self.assertEqual(selection["metric_value"], 0.78)
+        self.assertFalse(selection["fallback_used"])
+
+    def test_paired_auto_selection_falls_back_to_val_loss(self) -> None:
+        selection = resolve_selection_metric(
+            {
+                "val_loss": 0.37,
+                "breast_auroc": None,
+            },
+            selection_metric="auto",
+            auto_metric_preferences=DEFAULT_PAIRED_AUTO_SELECTION_METRICS,
+        )
+
+        self.assertEqual(selection["metric_name"], "val_loss")
+        self.assertEqual(selection["metric_value"], 0.37)
+        self.assertFalse(selection["higher_is_better"])
+        self.assertTrue(selection["fallback_used"])
+        self.assertIn("breast_auroc unavailable", selection["fallback_reason"])
+
     def test_higher_priority_selection_beats_lower_priority_metric(self) -> None:
         lower_priority = resolve_selection_metric(
             {
@@ -193,6 +226,35 @@ class TrainingSmokeTestCase(unittest.TestCase):
         self.assertIsNone(metrics["breast_mean_auroc"])
         self.assertEqual(metrics["num_val_images"], 4)
         self.assertEqual(metrics["num_val_breasts"], 2)
+
+    def test_validate_one_epoch_paired_returns_none_for_single_class_auroc(self) -> None:
+        train_split_path, val_split_path, archive_path = self.write_paired_split_inputs(
+            train_specs=[("A_L", 0), ("B_R", 1)],
+            val_specs=[("C_L", 0), ("D_R", 0)],
+        )
+        loaders = build_paired_breast_loaders(
+            train_split_csv_path=train_split_path,
+            val_split_csv_path=val_split_path,
+            archive_path=archive_path,
+            image_size=64,
+            batch_size=2,
+            num_workers=0,
+        )
+
+        try:
+            criterion = nn.BCEWithLogitsLoss()
+            metrics = validate_one_epoch_paired(
+                model=DummyPairedModel(logits=[0.0, 0.0]),
+                loader=loaders.val_loader,
+                criterion=criterion,
+                device=torch.device("cpu"),
+            )
+        finally:
+            loaders.close()
+
+        self.assertIsNone(metrics["breast_auroc"])
+        self.assertEqual(metrics["num_val_breasts"], 2)
+        self.assertIn("breast_accuracy", metrics)
 
     def test_fit_raises_when_explicit_metric_is_unavailable_for_all_epochs(self) -> None:
         train_split_path, val_split_path, archive_path = self.write_split_inputs(
@@ -247,6 +309,24 @@ class TrainingSmokeTestCase(unittest.TestCase):
         self.write_csv(val_split_path, val_rows)
         return train_split_path, val_split_path, archive_path
 
+    def write_paired_split_inputs(
+        self,
+        train_specs: list[tuple[str, int]],
+        val_specs: list[tuple[str, int]],
+    ) -> tuple[Path, Path, Path]:
+        archive_path = self.root / "paired_train_img.zip"
+        train_split_path = self.root / "paired_train_split.csv"
+        val_split_path = self.root / "paired_val_split.csv"
+
+        train_rows = self.build_paired_rows(train_specs)
+        val_rows = self.build_paired_rows(val_specs)
+        archive_rows = self.build_rows(train_specs) + self.build_rows(val_specs)
+
+        self.write_archive(archive_path, archive_rows)
+        self.write_paired_csv(train_split_path, train_rows)
+        self.write_paired_csv(val_split_path, val_rows)
+        return train_split_path, val_split_path, archive_path
+
     def build_rows(self, specs: list[tuple[str, int]]) -> list[dict[str, str]]:
         rows: list[dict[str, str]] = []
         for breast_id, label in specs:
@@ -272,6 +352,28 @@ class TrainingSmokeTestCase(unittest.TestCase):
                 )
         return rows
 
+    def build_paired_rows(self, specs: list[tuple[str, int]]) -> list[dict[str, str]]:
+        rows: list[dict[str, str]] = []
+        for breast_id, label in specs:
+            laterality = breast_id.split("_")[-1]
+            pathology = "M" if label == 1 else "N"
+            birads = "4C" if label == 1 else "1"
+            rows.append(
+                {
+                    "breast_id": breast_id,
+                    "pathology": pathology,
+                    "is_malignant": str(label),
+                    "image_id_cc": f"{breast_id}_CC",
+                    "image_id_mlo": f"{breast_id}_MLO",
+                    "image_path_cc": f"train_img/{breast_id}/{breast_id}_CC.jpg",
+                    "image_path_mlo": f"train_img/{breast_id}/{breast_id}_MLO.jpg",
+                    "laterality": laterality,
+                    "device": "HLG",
+                    "birads": birads,
+                }
+            )
+        return rows
+
     def write_archive(self, archive_path: Path, rows: list[dict[str, str]]) -> None:
         with ZipFile(archive_path, "w") as archive:
             for row in rows:
@@ -283,6 +385,12 @@ class TrainingSmokeTestCase(unittest.TestCase):
     def write_csv(self, path: Path, rows: list[dict[str, str]]) -> None:
         with path.open("w", encoding="utf-8", newline="") as handle:
             writer = csv.DictWriter(handle, fieldnames=SINGLE_IMAGE_FIELDS)
+            writer.writeheader()
+            writer.writerows(rows)
+
+    def write_paired_csv(self, path: Path, rows: list[dict[str, str]]) -> None:
+        with path.open("w", encoding="utf-8", newline="") as handle:
+            writer = csv.DictWriter(handle, fieldnames=PAIRED_BREAST_FIELDS)
             writer.writeheader()
             writer.writerows(rows)
 
@@ -300,6 +408,15 @@ class TrainingSmokeTestCase(unittest.TestCase):
         buffer = BytesIO()
         image.save(buffer, format="JPEG")
         return buffer.getvalue()
+
+
+class DummyPairedModel(nn.Module):
+    def __init__(self, logits: list[float]) -> None:
+        super().__init__()
+        self.register_buffer("logits", torch.tensor(logits, dtype=torch.float32))
+
+    def forward(self, x_cc: torch.Tensor, x_mlo: torch.Tensor) -> torch.Tensor:
+        return self.logits[: x_cc.shape[0]]
 
 
 if __name__ == "__main__":

@@ -1,0 +1,407 @@
+"""Run one Stage 2 paired-baseline smoke test and record contract checks."""
+
+from __future__ import annotations
+
+import argparse
+import csv
+import json
+import statistics
+import subprocess
+import sys
+from collections import Counter
+from pathlib import Path
+from typing import Any
+
+
+REPO_ROOT = Path(__file__).resolve().parents[1]
+DEFAULT_TRAIN_SPLIT = REPO_ROOT / "data" / "processed" / "splits" / "primary_paired_breast_split_train.csv"
+DEFAULT_VAL_SPLIT = REPO_ROOT / "data" / "processed" / "splits" / "primary_paired_breast_split_val.csv"
+DEFAULT_ARCHIVE_PATH = REPO_ROOT / "data" / "raw" / "primary" / "train_img.zip"
+DEFAULT_OUTPUT_DIR = REPO_ROOT / "outputs" / "m2_smoke"
+STAGE2_AGGREGATION_LABEL = "paired_direct"
+
+
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--train-split", type=Path, default=DEFAULT_TRAIN_SPLIT)
+    parser.add_argument("--val-split", type=Path, default=DEFAULT_VAL_SPLIT)
+    parser.add_argument("--archive-path", type=Path, default=DEFAULT_ARCHIVE_PATH)
+    parser.add_argument("--image-root", type=Path, default=None)
+    parser.add_argument("--image-size", type=int, default=256)
+    parser.add_argument("--batch-size", type=int, default=2)
+    parser.add_argument("--epochs", type=int, default=1)
+    parser.add_argument("--lr", type=float, default=1e-4)
+    parser.add_argument("--seed", type=int, default=42)
+    parser.add_argument("--num-workers", type=int, default=0)
+    parser.add_argument("--selection-metric", type=str, default="auto")
+    parser.add_argument("--output-dir", type=Path, default=DEFAULT_OUTPUT_DIR)
+    return parser.parse_args()
+
+
+def main() -> int:
+    args = parse_args()
+    output_dir = args.output_dir
+    train_output_dir = output_dir / "train"
+    eval_output_dir = output_dir / "eval"
+    report_path = output_dir / "stage2_smoke_report.md"
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    train_command = build_train_command(args, train_output_dir)
+    train_result = run_and_log(
+        command=train_command,
+        stdout_path=output_dir / "train_stdout.log",
+        stderr_path=output_dir / "train_stderr.log",
+    )
+    if train_result.returncode != 0:
+        print("Stage 2 smoke test failed during training.", file=sys.stderr)
+        print(f"- train stdout: {output_dir / 'train_stdout.log'}", file=sys.stderr)
+        print(f"- train stderr: {output_dir / 'train_stderr.log'}", file=sys.stderr)
+        return train_result.returncode
+
+    eval_command = build_eval_command(args, train_output_dir / "best_model.pt", eval_output_dir)
+    eval_result = run_and_log(
+        command=eval_command,
+        stdout_path=output_dir / "eval_stdout.log",
+        stderr_path=output_dir / "eval_stderr.log",
+    )
+    if eval_result.returncode != 0:
+        print("Stage 2 smoke test failed during evaluation.", file=sys.stderr)
+        print(f"- eval stdout: {output_dir / 'eval_stdout.log'}", file=sys.stderr)
+        print(f"- eval stderr: {output_dir / 'eval_stderr.log'}", file=sys.stderr)
+        return eval_result.returncode
+
+    train_config = read_json(train_output_dir / "config.json")
+    train_metrics = read_json(train_output_dir / "metrics_summary.json")
+    eval_metrics = read_json(eval_output_dir / "breast_level_metrics.json")
+    breast_prediction_rows = read_csv_rows(eval_output_dir / "breast_level_predictions.csv")
+    image_predictions_path = eval_output_dir / "image_level_predictions.csv"
+
+    val_breast_label_counts = count_split_breast_labels(args.val_split)
+    prediction_stats = summarize_predictions(breast_prediction_rows)
+    split_context = resolve_split_context(args.train_split, args.val_split)
+    contract_checks = build_contract_checks(breast_prediction_rows, image_predictions_path)
+    report = build_report(
+        args=args,
+        train_output_dir=train_output_dir,
+        eval_output_dir=eval_output_dir,
+        train_config=train_config,
+        train_metrics=train_metrics,
+        eval_metrics=eval_metrics,
+        val_breast_label_counts=val_breast_label_counts,
+        prediction_stats=prediction_stats,
+        split_context=split_context,
+        contract_checks=contract_checks,
+    )
+    report_path.write_text(report, encoding="utf-8")
+
+    if not contract_checks["all_passed"]:
+        print("Stage 2 smoke test failed contract checks.", file=sys.stderr)
+        print(f"- report: {report_path}", file=sys.stderr)
+        return 1
+
+    print("Stage 2 smoke test finished successfully")
+    print(f"- output dir: {output_dir}")
+    print(f"- report: {report_path}")
+    print(f"- train metrics: {train_output_dir / 'metrics_summary.json'}")
+    print(f"- eval metrics: {eval_output_dir / 'breast_level_metrics.json'}")
+    print(f"- breast auroc: {format_metric_value(eval_metrics['breast_auroc'])}")
+    print(f"- collapse suspected: {prediction_stats['collapse_suspected']}")
+    print("- image predictions: not generated by paired contract")
+    return 0
+
+
+def build_train_command(args: argparse.Namespace, train_output_dir: Path) -> list[str]:
+    command = [
+        sys.executable,
+        str(REPO_ROOT / "scripts" / "train_baseline.py"),
+        "--dataset",
+        "paired",
+        "--train-split",
+        str(args.train_split),
+        "--val-split",
+        str(args.val_split),
+        "--archive-path",
+        str(args.archive_path),
+        "--image-size",
+        str(args.image_size),
+        "--batch-size",
+        str(args.batch_size),
+        "--epochs",
+        str(args.epochs),
+        "--lr",
+        str(args.lr),
+        "--seed",
+        str(args.seed),
+        "--num-workers",
+        str(args.num_workers),
+        "--selection-metric",
+        str(args.selection_metric),
+        "--output-dir",
+        str(train_output_dir),
+    ]
+    if args.image_root is not None:
+        command.extend(["--image-root", str(args.image_root)])
+    return command
+
+
+def build_eval_command(args: argparse.Namespace, checkpoint_path: Path, eval_output_dir: Path) -> list[str]:
+    command = [
+        sys.executable,
+        str(REPO_ROOT / "scripts" / "run_eval.py"),
+        "--dataset",
+        "paired",
+        "--checkpoint",
+        str(checkpoint_path),
+        "--val-split",
+        str(args.val_split),
+        "--archive-path",
+        str(args.archive_path),
+        "--image-size",
+        str(args.image_size),
+        "--batch-size",
+        str(args.batch_size),
+        "--num-workers",
+        str(args.num_workers),
+        "--output-dir",
+        str(eval_output_dir),
+    ]
+    if args.image_root is not None:
+        command.extend(["--image-root", str(args.image_root)])
+    return command
+
+
+def run_and_log(command: list[str], stdout_path: Path, stderr_path: Path) -> subprocess.CompletedProcess[str]:
+    completed = subprocess.run(
+        command,
+        cwd=REPO_ROOT,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    stdout_path.write_text(completed.stdout, encoding="utf-8")
+    stderr_path.write_text(completed.stderr, encoding="utf-8")
+    return completed
+
+
+def read_json(path: Path) -> dict[str, Any]:
+    return json.loads(path.read_text(encoding="utf-8"))
+
+
+def read_csv_rows(path: Path) -> list[dict[str, str]]:
+    with path.open("r", encoding="utf-8-sig", newline="") as handle:
+        return list(csv.DictReader(handle))
+
+
+def count_split_breast_labels(path: Path) -> dict[str, int]:
+    rows = read_csv_rows(path)
+    return {
+        str(label): count
+        for label, count in sorted(Counter(int(row["is_malignant"]) for row in rows).items())
+    }
+
+
+def summarize_predictions(rows: list[dict[str, str]]) -> dict[str, Any]:
+    predictions = [float(row["prediction"]) for row in rows]
+    if not predictions:
+        return {
+            "count": 0,
+            "min": None,
+            "max": None,
+            "mean": None,
+            "std": None,
+            "range": None,
+            "collapse_suspected": True,
+        }
+
+    prediction_min = min(predictions)
+    prediction_max = max(predictions)
+    prediction_std = statistics.pstdev(predictions) if len(predictions) > 1 else 0.0
+    prediction_range = prediction_max - prediction_min
+    collapse_suspected = prediction_std < 0.02 or prediction_range < 0.05
+    return {
+        "count": len(predictions),
+        "min": prediction_min,
+        "max": prediction_max,
+        "mean": float(sum(predictions) / len(predictions)),
+        "std": prediction_std,
+        "range": prediction_range,
+        "collapse_suspected": collapse_suspected,
+    }
+
+
+def resolve_split_context(train_split: Path, val_split: Path) -> dict[str, Any]:
+    split_summary_path = val_split.parent / "primary_split_summary.json"
+    if not split_summary_path.exists():
+        return {
+            "summary_path": None,
+            "val_fold": None,
+            "train_folds": [],
+            "paired_val_label_counts": None,
+        }
+
+    split_summary = read_json(split_summary_path)
+    fold_assignment = split_summary.get("fold_assignment", {})
+    paired = split_summary.get("paired", {})
+    return {
+        "summary_path": str(split_summary_path),
+        "val_fold": fold_assignment.get("val_fold"),
+        "train_folds": fold_assignment.get("train_folds", []),
+        "paired_val_label_counts": paired.get("val", {}).get("label_counts"),
+    }
+
+
+def build_contract_checks(
+    breast_prediction_rows: list[dict[str, str]],
+    image_predictions_path: Path,
+) -> dict[str, Any]:
+    probability_out_of_range = [
+        row["breast_id"]
+        for row in breast_prediction_rows
+        if not 0.0 <= float(row["prediction"]) <= 1.0
+    ]
+    view_order_violations = [
+        row["breast_id"]
+        for row in breast_prediction_rows
+        if not str(row["image_id_cc"]).endswith("CC") or not str(row["image_id_mlo"]).endswith("MLO")
+    ]
+    unexpected_image_predictions = image_predictions_path.exists()
+    all_passed = not probability_out_of_range and not view_order_violations and not unexpected_image_predictions
+    return {
+        "all_passed": all_passed,
+        "unexpected_image_predictions": unexpected_image_predictions,
+        "probability_out_of_range": probability_out_of_range,
+        "view_order_violations": view_order_violations,
+    }
+
+
+def build_report(
+    args: argparse.Namespace,
+    train_output_dir: Path,
+    eval_output_dir: Path,
+    train_config: dict[str, Any],
+    train_metrics: dict[str, Any],
+    eval_metrics: dict[str, Any],
+    val_breast_label_counts: dict[str, int],
+    prediction_stats: dict[str, Any],
+    split_context: dict[str, Any],
+    contract_checks: dict[str, Any],
+) -> str:
+    best_metrics = train_metrics["best_metrics"]
+    label_alignment_ok = val_breast_label_counts == eval_metrics["label_counts"]
+    finite_losses = all(
+        value == value and value not in (float("inf"), float("-inf"))
+        for value in [best_metrics["train_loss"], best_metrics["val_loss"]]
+    )
+    loss_observation = (
+        "Loss computed successfully and remained finite."
+        if finite_losses
+        else "Loss shows NaN/inf or another numerical issue."
+    )
+    label_observation = (
+        "Breast-level label counts from the validation split match the evaluation output, so labels look structurally aligned."
+        if label_alignment_ok
+        else "Breast-level label counts from the validation split do not match the evaluation output; labels need inspection."
+    )
+    collapse_observation = (
+        "Breast-level predictions are tightly clustered, so there is a clear near-constant output / collapse risk."
+        if prediction_stats["collapse_suspected"]
+        else "Prediction spread is not collapsed by the current heuristic."
+    )
+    eval_observation = (
+        f"Breast-level AUROC was computed successfully: {format_metric_value(eval_metrics['breast_auroc'])}."
+        if eval_metrics["auroc_available"]
+        else f"Breast-level AUROC was not available: {eval_metrics['auroc_reason']}"
+    )
+    image_prediction_observation = (
+        "Image-level predictions were not generated, which matches the paired evaluation contract."
+        if not contract_checks["unexpected_image_predictions"]
+        else "Image-level predictions were generated unexpectedly, which violates the paired evaluation contract."
+    )
+    order_observation = (
+        "Exported rows preserved `(CC, MLO)` ordering."
+        if not contract_checks["view_order_violations"]
+        else f"Some exported rows violated `(CC, MLO)` ordering: {contract_checks['view_order_violations']}"
+    )
+    probability_observation = (
+        "Exported `prediction` values are valid probabilities in `[0, 1]`."
+        if not contract_checks["probability_out_of_range"]
+        else f"Some exported predictions were outside `[0, 1]`: {contract_checks['probability_out_of_range']}"
+    )
+    overall_observation = (
+        "This run should be treated as a plumbing and contract sanity check, not as evidence of a strong baseline."
+    )
+    conclusion = (
+        "The end-to-end M2 smoke loop is established: strict paired loading, paired training, and direct breast-level evaluation all completed successfully."
+    )
+    main_limitation = (
+        "The local smoke run only proves plumbing; it does not establish final baseline quality and may still show collapse risk."
+    )
+    next_risk = (
+        "The main remaining risk is assuming local smoke behavior transfers to the full 1024-pixel server run without verifying memory, stability, and metric quality."
+    )
+
+    return f"""# Stage 2 Smoke Report
+
+## Minimal Configuration
+- Train split: `{args.train_split}`
+- Val split: `{args.val_split}`
+- Split summary: `{split_context['summary_path']}`
+- Val fold: `{split_context['val_fold']}`
+- Train folds: `{split_context['train_folds']}`
+- Epochs: `{args.epochs}`
+- Batch size: `{args.batch_size}`
+- Image size: `{args.image_size}`
+- Device: `{train_config['device']}`
+- Selection metric: `{train_config['selection_metric']}`
+- Aggregation label: `{STAGE2_AGGREGATION_LABEL}`
+- Train output dir: `{train_output_dir}`
+- Eval output dir: `{eval_output_dir}`
+- Checkpoint: `{train_output_dir / 'best_model.pt'}`
+
+## Pipeline Coverage
+- Strict paired loading: passed
+- Paired training: passed
+- Direct breast-level evaluation: passed
+- Contract checks: `{"passed" if contract_checks["all_passed"] else "failed"}`
+
+## Key Artifact Paths
+- Train config: `{train_output_dir / 'config.json'}`
+- Train metrics summary: `{train_output_dir / 'metrics_summary.json'}`
+- Best checkpoint: `{train_output_dir / 'best_model.pt'}`
+- Breast-level predictions: `{eval_output_dir / 'breast_level_predictions.csv'}`
+- Breast-level metrics: `{eval_output_dir / 'breast_level_metrics.json'}`
+- Image-level predictions: `not generated by paired contract`
+- Train stdout log: `{args.output_dir / 'train_stdout.log'}`
+- Train stderr log: `{args.output_dir / 'train_stderr.log'}`
+- Eval stdout log: `{args.output_dir / 'eval_stdout.log'}`
+- Eval stderr log: `{args.output_dir / 'eval_stderr.log'}`
+
+## Key Observations
+- Validation split breast labels: `{val_breast_label_counts}`
+- Split summary paired val labels: `{split_context['paired_val_label_counts']}`
+- Evaluation breast labels: `{eval_metrics['label_counts']}`
+- Label alignment: {label_observation}
+- Loss behavior: {loss_observation}
+- Breast prediction spread: count=`{prediction_stats['count']}`, min=`{format_metric_value(prediction_stats['min'])}`, max=`{format_metric_value(prediction_stats['max'])}`, std=`{format_metric_value(prediction_stats['std'])}`
+- Output collapse check: {collapse_observation}
+- Evaluation result: {eval_observation}
+- Image-level artifact check: {image_prediction_observation}
+- View-order check: {order_observation}
+- Probability export check: {probability_observation}
+- Overall reading: {overall_observation}
+
+## Sanity Conclusion
+- Current loop status: {conclusion}
+- Main limitation: {main_limitation}
+- Main M2 risk: {next_risk}
+"""
+
+
+def format_metric_value(value: float | None) -> str:
+    if value is None:
+        return "None"
+    return f"{value:.4f}"
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
