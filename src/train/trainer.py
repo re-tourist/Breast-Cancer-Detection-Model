@@ -425,7 +425,10 @@ def _fit_loop(
             }
         )
         history.append(epoch_metrics)
-        print(_format_epoch_summary(epoch, epochs, epoch_metrics, selection_info, metric_display_order))
+        print(
+            _format_epoch_summary(epoch, epochs, epoch_metrics, selection_info, metric_display_order),
+            flush=True,
+        )
 
         if is_better_selection(selection_info, best_selection):
             best_epoch = epoch
