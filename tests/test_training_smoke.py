@@ -75,6 +75,9 @@ class TrainingSmokeTestCase(unittest.TestCase):
             check=True,
         )
 
+        self.assertIn("Starting training", completed.stdout)
+        self.assertIn("- device: ", completed.stdout)
+        self.assertIn("Epoch 1/1", completed.stdout)
         self.assertIn("Training finished successfully", completed.stdout)
         self.assertTrue((output_dir / "config.json").exists())
         self.assertTrue((output_dir / "metrics_summary.json").exists())
@@ -98,6 +101,50 @@ class TrainingSmokeTestCase(unittest.TestCase):
         self.assertEqual(history_entry["selection_metric_name"], "breast_mean_auroc")
         self.assertFalse(history_entry["selection_fallback_used"])
         self.assertEqual(history_entry["selection_fallback_reason"], "")
+        self.assertIn("device_description", metrics_summary["config"])
+
+    def test_train_baseline_script_preserves_existing_output_dir(self) -> None:
+        train_split_path, val_split_path, archive_path = self.write_split_inputs(
+            train_specs=[("A_L", 0), ("B_R", 1), ("C_L", 0), ("D_R", 1)],
+            val_specs=[("E_L", 0), ("F_R", 1)],
+        )
+        output_dir = self.root / "baseline_output"
+        output_dir.mkdir(parents=True, exist_ok=False)
+        sentinel_path = output_dir / "sentinel.txt"
+        sentinel_path.write_text("keep-me", encoding="utf-8")
+
+        completed = subprocess.run(
+            [
+                sys.executable,
+                str(REPO_ROOT / "scripts" / "train_baseline.py"),
+                "--train-split",
+                str(train_split_path),
+                "--val-split",
+                str(val_split_path),
+                "--archive-path",
+                str(archive_path),
+                "--image-size",
+                "64",
+                "--batch-size",
+                "2",
+                "--epochs",
+                "1",
+                "--output-dir",
+                str(output_dir),
+            ],
+            cwd=REPO_ROOT,
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+
+        self.assertIn("requested output dir preserved", completed.stdout)
+        resolved_output_dir = self.extract_first_value(completed.stdout, prefix="- output dir: ")
+        self.assertNotEqual(str(output_dir), resolved_output_dir)
+        self.assertTrue(sentinel_path.exists())
+        self.assertTrue((Path(resolved_output_dir) / "config.json").exists())
+        self.assertTrue((Path(resolved_output_dir) / "metrics_summary.json").exists())
+        self.assertTrue((Path(resolved_output_dir) / "best_model.pt").exists())
 
     def test_auto_selection_prefers_breast_mean_auroc(self) -> None:
         selection = resolve_selection_metric(
@@ -408,6 +455,12 @@ class TrainingSmokeTestCase(unittest.TestCase):
         buffer = BytesIO()
         image.save(buffer, format="JPEG")
         return buffer.getvalue()
+
+    def extract_first_value(self, text: str, prefix: str) -> str:
+        for line in text.splitlines():
+            if line.startswith(prefix):
+                return line[len(prefix) :].strip()
+        self.fail(f"Could not find line starting with '{prefix}' in output:\n{text}")
 
 
 class DummyPairedModel(nn.Module):

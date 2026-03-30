@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+from datetime import datetime
 from pathlib import Path
 
 import torch
@@ -57,7 +58,8 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> int:
     args = parse_args()
-    train_split, val_split, output_dir = resolve_runtime_paths(args)
+    train_split, val_split, requested_output_dir = resolve_runtime_paths(args)
+    output_dir, output_redirected = resolve_safe_output_dir(requested_output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
 
     set_random_seed(args.seed)
@@ -76,9 +78,19 @@ def main() -> int:
         "seed": args.seed,
         "num_workers": args.num_workers,
         "device": str(device),
+        "device_description": describe_device(device),
         "selection_metric": args.selection_metric,
         "output_dir": str(output_dir),
     }
+
+    print("Starting training", flush=True)
+    print(f"- dataset: {args.dataset}", flush=True)
+    print(f"- device: {describe_device(device)}", flush=True)
+    print(f"- train split: {train_split}", flush=True)
+    print(f"- val split: {val_split}", flush=True)
+    if output_redirected:
+        print(f"- requested output dir preserved: {requested_output_dir}", flush=True)
+    print(f"- output dir: {output_dir}", flush=True)
 
     if args.dataset == "single":
         config["model"] = "MinimalSingleImageCNN"
@@ -167,15 +179,19 @@ def main() -> int:
     write_json(output_dir / "metrics_summary.json", metrics_summary)
 
     print("Training finished successfully")
-    print(f"- dataset: {args.dataset}")
-    print(f"- primary selection metric: {fit_result['primary_selection_metric']}")
-    print(f"- best epoch: {fit_result['best_epoch']}")
-    print(f"- best metric: {fit_result['best_metric_name']}={format_metric_value(fit_result['best_metric_value'])}")
-    print(f"- fallback used: {fit_result['fallback_used']}")
-    print(f"- fallback reason: {fit_result['fallback_reason'] or 'None'}")
-    print(f"- wrote: {output_dir / 'config.json'}")
-    print(f"- wrote: {output_dir / 'metrics_summary.json'}")
-    print(f"- wrote: {fit_result['best_checkpoint_path']}")
+    print(f"- dataset: {args.dataset}", flush=True)
+    print(f"- device: {describe_device(device)}", flush=True)
+    print(f"- primary selection metric: {fit_result['primary_selection_metric']}", flush=True)
+    print(f"- best epoch: {fit_result['best_epoch']}", flush=True)
+    print(
+        f"- best metric: {fit_result['best_metric_name']}={format_metric_value(fit_result['best_metric_value'])}",
+        flush=True,
+    )
+    print(f"- fallback used: {fit_result['fallback_used']}", flush=True)
+    print(f"- fallback reason: {fit_result['fallback_reason'] or 'None'}", flush=True)
+    print(f"- wrote: {output_dir / 'config.json'}", flush=True)
+    print(f"- wrote: {output_dir / 'metrics_summary.json'}", flush=True)
+    print(f"- wrote: {fit_result['best_checkpoint_path']}", flush=True)
     return 0
 
 
@@ -190,6 +206,31 @@ def resolve_runtime_paths(args: argparse.Namespace) -> tuple[Path, Path, Path]:
     val_split = args.val_split or DEFAULT_PAIRED_VAL_SPLIT
     output_dir = args.output_dir or DEFAULT_PAIRED_OUTPUT_DIR
     return train_split, val_split, output_dir
+
+
+def resolve_safe_output_dir(requested_output_dir: Path) -> tuple[Path, bool]:
+    if requested_output_dir.exists() and requested_output_dir.is_file():
+        raise ValueError(f"Requested output dir '{requested_output_dir}' is a file, not a directory.")
+    if not requested_output_dir.exists():
+        return requested_output_dir, False
+    if not any(requested_output_dir.iterdir()):
+        return requested_output_dir, False
+
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    candidate = requested_output_dir.parent / f"{requested_output_dir.name}_{timestamp}"
+    suffix = 1
+    while candidate.exists():
+        candidate = requested_output_dir.parent / f"{requested_output_dir.name}_{timestamp}_{suffix:02d}"
+        suffix += 1
+    return candidate, True
+
+
+def describe_device(device: torch.device) -> str:
+    if device.type == "cuda":
+        device_index = 0 if device.index is None else device.index
+        device_name = torch.cuda.get_device_name(device_index)
+        return f"gpu (cuda:{device_index}, {device_name})"
+    return device.type
 
 
 def write_json(path: Path, payload: dict[str, object]) -> None:
