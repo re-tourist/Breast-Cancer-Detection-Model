@@ -10,7 +10,7 @@
 
 开始前你必须先阅读并遵守以下内容：
 1. docs/plan/minimal_system_design.md
-2. docs/gitflow/issue/issue_stage1.md（若 docs/plan/issue_stage1.md 不存在，则以等价文档为准）
+ 2. docs/plan/issue_stage1.md
 3. src/data/index_builder.py 及 Issue 1.1 生成的索引文件
 4. src/data/datasets.py 与 transforms.py，理解当前 single / paired dataset 的输入字段
 5. data/processed/metadata/ 下的 primary_single_image_index.csv 与 primary_paired_breast_index.csv

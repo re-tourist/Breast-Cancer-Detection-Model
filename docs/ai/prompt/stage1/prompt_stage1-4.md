@@ -11,7 +11,7 @@
 
 开始前你必须先阅读并遵守以下内容：
 1. docs/plan/minimal_system_design.md
-2. docs/gitflow/issue/issue_stage1.md（若 docs/plan/issue_stage1.md 不存在，则以等价文档为准）
+ 2. docs/plan/issue_stage1.md
 3. src/data/index_builder.py、src/data/datasets.py、src/data/transforms.py、src/data/splits.py
 4. data/processed/splits/ 下的 split artifacts
 5. 现有 scripts/ 下与数据检查相关的脚本，避免重复造轮子

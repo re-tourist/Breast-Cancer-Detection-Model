@@ -1,293 +1,191 @@
 # AGENTS.md
 
-## Project Overview
-This repository is a course project for breast cancer detection using deep learning.
-
-Current focus:
-- bootstrap the repository
-- define data conventions
-- inspect the dataset
-- define task and evaluation protocol
-- prepare for a minimal baseline
-
-At the current stage, prioritize clarity, extensibility, and reproducibility over model complexity.
-
----
-
-## Current Stage Boundary
-
-This repository is currently in an early project-bootstrap stage.
-
-Allowed:
-- create and refine project structure
-- define data directory conventions
-- write project documentation
-- implement lightweight dataset inspection utilities
-- clarify task definition and evaluation protocol
-- improve README, .gitignore, and developer workflow docs
-
-Not allowed unless explicitly requested:
-- large-scale model training
-- aggressive optimization
-- complicated pipeline design
-- premature abstraction for future stages
-- introducing many dependencies without a clear need
-
-When uncertain, prefer the smallest clean solution that keeps the next stage unblocked.
-
----
-
-## Primary Goals at This Stage
-
-The agent should help the repository reach these outcomes:
-
-1. clear repository structure
-2. clean data directory design
-3. successful dataset intake and basic inspection
-4. explicit task definition
-5. explicit evaluation protocol
-6. readable README and maintainable dev workflow
-
-Do not drift into later-stage modeling work unless the user explicitly asks for it.
-
----
-
-## Instruction Priority
-
-When working in this repo, use this priority order:
-
-1. direct user request
-2. this AGENTS.md
-3. stage planning documents in `docs/` or project root
-4. existing code conventions
-5. default framework conventions
-
-If instructions conflict, do not guess silently. State the conflict clearly.
-
----
-
-## How to Read the Repository Before Editing
-
-Before making non-trivial changes:
-
-1. read `README.md` if present
-2. read stage planning documents relevant to the task
-3. inspect the target directory before creating new files
-4. reuse existing naming and layout whenever possible
-
-Do not create parallel structures without a strong reason.
-
-Examples of bad behavior:
-- creating a new directory tree when an existing one already fits
-- duplicating task definitions in multiple files
-- adding scripts that hardcode personal paths
-
----
-
-## Repository Design Principles
-
-### 1. Prefer simple and conventional structure
-Use a minimal structure that is easy to understand and easy to extend.
-
-### 2. Separate concerns clearly
-Keep data rules, task definition, model code, training code, and evaluation code logically separated.
-
-### 3. Reproducibility first
-Any script that inspects or prepares data should be rerunnable and should avoid hidden assumptions.
-
-### 4. Avoid hardcoded paths
-Use repository-relative paths, config files, or clearly defined constants.
-
-### 5. Document decisions
-If a design choice affects future work, record it in Markdown rather than leaving it implicit in code.
-
----
-
-## Directory Guidance
-
-Typical expected top-level layout may include:
-
-- `src/` or `models/` for source code
-- `data/` for dataset storage conventions
-- `scripts/` for runnable utilities
-- `configs/` for configuration files
-- `docs/` for planning, task definition, workflow, and research notes
-- `outputs/` for generated artifacts
-- `tests/` for lightweight validation where appropriate
-
-The agent should not force a large architecture too early.
-If only a minimal structure is needed for the current stage, keep it minimal.
-
----
-
-## Data Handling Rules
-
-Data organization must be explicit and extensible.
-
-Preferred principles:
-- separate raw / interim / processed data when relevant
-- distinguish official/course data from external data when relevant
-- keep metadata, splits, and cache conceptually separate
-- never commit large raw datasets unless explicitly intended
-- document expected file locations in Markdown
-
-If the dataset is first being integrated:
-- inspect actual filenames and label files before defining loaders
-- summarize image format, labels, class balance, and anomalies
-- do not assume binary/multiclass details without checking
-
----
-
-## Documentation Rules
-
-When writing documentation:
-
-- explain what the file is for
-- explain what is in scope and out of scope
-- prefer concrete bullets/checklists over vague prose
-- keep terminology consistent across README, docs, and scripts
-- update docs when code structure changes
-
-Important:
-- README should explain what the project does now, not what it may do one month later
-- avoid fake completeness
-- mark placeholders clearly if something is intentionally unfinished
-
----
-
-## README Expectations
-
-A good README at this stage should cover:
-
-1. project purpose
-2. current stage and scope
-3. repository structure
-4. data organization
-5. setup instructions
-6. minimal usage instructions
-7. current progress
-8. next planned steps
-
-README should be honest about what is already implemented and what is not yet implemented.
-
----
-
-## .gitignore Expectations
-
-At minimum, ignore:
-- Python cache files
-- virtual environments
-- notebook checkpoints
-- OS/editor junk
-- large data directories when appropriate
-- generated outputs
-- model checkpoints
-- experiment logs
-
-Do not ignore source code, configs, or essential small documentation files.
-
----
-
-## Coding Rules
-
-For Python code:
-- prefer readable, explicit code
-- add short docstrings for non-trivial functions
-- avoid overengineering
-- keep functions small and testable
-- use clear naming
-- avoid magic numbers when a named constant is clearer
-
-For scripts:
-- make inputs/outputs explicit
-- print concise summaries of what the script did
-- fail loudly on missing required files
-- do not silently swallow exceptions
-
----
-
-## Evaluation and Task Definition Rules
-
-When working on task definition or evaluation documents:
-
-- explicitly define the task type
-- explicitly define input format
-- explicitly define label format
-- explicitly define train/val/test assumptions if known
-- explicitly define primary metrics
-- mention secondary metrics if useful
-- explain why the chosen metrics are appropriate
-
-Do not list metrics mechanically.
-Tie metrics to the task and dataset characteristics.
-
----
-
-## Git and Change Discipline
-
-Prefer small, focused changes.
-
-When making edits:
-- do not mix unrelated refactors into a task
-- preserve existing user work
-- do not rename files casually
-- do not rewrite structure unless necessary
-
-If a task touches multiple files, keep the change logically coherent.
-
-Suggested branch intent from current planning:
-- data-related work -> `feat/data`
-- structure/scripts/bootstrap work -> `feat/scripts`
-- documentation-heavy work -> `docs`
-- integration happens on `dev`
-
-If the current checked-out branch does not match the task, warn before making broad changes.
-
----
-
-## When the Agent Should Ask for Clarification
-
-Ask before proceeding when:
-- the real dataset layout conflicts with documented assumptions
-- there are multiple equally plausible repository structures
-- a request would introduce major new dependencies
-- a request crosses the current stage boundary significantly
-- the intended source directory (`src/` vs `models/`) is ambiguous and would affect many files
-
-Do not ask for clarification on minor naming choices if the planning docs already imply a reasonable answer.
-
----
-
-## What “Good Output” Looks Like in This Repo
-
-A good contribution in this repository usually has these traits:
-
-- aligned with the current stage
-- small but complete
-- documented
-- reproducible
-- easy to review
-- leaves the repo cleaner than before
-
----
-
-## Preferred Working Style for This Repo
-
-When given a task:
-1. restate the concrete goal briefly
-2. inspect existing relevant files
-3. make the minimum high-confidence changes
-4. summarize what changed
-5. mention any assumptions or follow-up risks
-
-Do not pretend something was verified if it was not actually verified.
-
----
-
-## If You Update This File
-
-Update this AGENTS.md when:
-- the same mistake happens more than once
-- a repo convention becomes stable
-- a directory needs local rules
-- stage focus changes materially
+## Purpose
+
+- Repo-level operating manual for AI coding agents working in this repository.
+- This is a single-package Python project for breast cancer detection work: Stage 1 established a minimal runnable pipeline, and the repo is now transitioning into Stage 2 planning for a stronger breast-level baseline.
+- Use this file for durable execution rules. Use `README.md` and `docs/` for human-oriented project context.
+
+## Current Boundary
+
+- Treat the repository as a Stage 1 foundation with an active Stage 2 planning boundary:
+  - dataset inspection and indexing
+  - `breast_id`-grouped split generation
+  - the current single-image fallback path
+  - breast-level aggregation and evaluation
+  - smoke-tested artifact generation
+- For M2-style paired-baseline changes, follow the active Stage 2 plan, issue breakdown, and contract freeze instead of improvising.
+
+## Read First
+
+Read in this order before non-trivial changes:
+
+1. `README.md`
+2. `docs/ai/WORKFLOW_GUIDE.md`
+3. `data/README.md`
+4. `docs/task_definition.md`
+5. `docs/handoff/stage1_handoff.md`
+6. `docs/ai/PROJECT_CONTEXT.md`
+7. `docs/snapshots/project_snapshot.md`
+8. `docs/plan/plan_stageX.md`
+9. `docs/plan/issue_stageX.md`
+10. `docs/contracts/contract_freeze*.md`
+11. `docs/review/code_review.md`
+12. `docs/handoff/milestone_closeout*.md`
+13. The relevant `scripts/*.py` entrypoint
+14. The backing `src/*` module(s)
+15. The affected `tests/test_*.py`
+
+- If the task touches branching or merge policy, read `docs/ai/WORKFLOW_GUIDE.md` first.
+- If older planning notes conflict with live code, trust `README.md`, `data/README.md`, `docs/ai/PROJECT_CONTEXT.md`, `docs/snapshots/project_snapshot.md`, `docs/plan/*.md`, `docs/contracts/*.md`, `docs/handoff/*.md`, and the current scripts first.
+
+## Repo Map
+
+- `src/data/`: dataset indexing, normalized CSV schemas, loaders, transforms, grouped split logic
+- `src/models/`: minimal baseline model
+- `src/train/`: training loop, metric selection, checkpoint writing
+- `src/eval/`: prediction collection, breast-level aggregation, evaluation artifacts
+- `scripts/`: runnable Stage 1 entrypoints
+- `docs/ai/`: project context and workflow guidance
+- `docs/snapshots/`: repository snapshot documents
+- `docs/plan/`: stage plans and issue breakdowns
+- `docs/contracts/`: frozen stage boundaries
+- `docs/review/`: review expectations and checklists
+- `tests/`: current validation suite; uses `unittest`
+- `data/raw/primary/`: course raw dataset; treat as read-only
+- `data/processed/`: reproducible metadata and split artifacts; regenerate instead of hand-editing
+- `outputs/`: generated runs, previews, and test temp files; not source code
+- `docs/handoff/`: current runtime and artifact state
+
+High-frequency entrypoints:
+
+- `scripts/inspect_dataset.py`
+- `scripts/build_dataset_index.py`
+- `scripts/build_splits.py`
+- `scripts/check_dataset_loading.py`
+- `scripts/train_baseline.py`
+- `scripts/run_eval.py`
+- `scripts/run_stage1_smoke.py`
+
+## Environment And Commands
+
+- Observed locally during validation: `Python 3.12.8`
+- `README.md` currently names these runtime dependencies: `numpy`, `Pillow`, `torch`, `scikit-learn`
+- `requirements.txt` is empty. Do not invent a setup flow; if environment bootstrapping matters, mark it `TODO / verify with maintainers`.
+
+```bash
+# inspect current raw dataset assumptions
+python scripts/inspect_dataset.py
+
+# rebuild normalized indexes
+python scripts/build_dataset_index.py
+
+# rebuild grouped split artifacts
+python scripts/build_splits.py
+
+# smoke-test dataset loading and optionally save previews
+python scripts/check_dataset_loading.py --dataset paired --batch-size 2 --num-batches 1 --save-preview
+
+# run minimal Stage 1 training
+python scripts/train_baseline.py --epochs 1 --batch-size 8 --image-size 512
+
+# run breast-level evaluation from a checkpoint
+python scripts/run_eval.py --checkpoint outputs/m1_baseline/best_model.pt --image-size 512 --output-dir outputs/m1_baseline/eval
+
+# run the end-to-end Stage 1 smoke flow
+python scripts/run_stage1_smoke.py
+
+# targeted tests
+python -m unittest tests.test_index_builder
+python -m unittest tests.test_datasets
+python -m unittest tests.test_splits
+python -m unittest tests.test_split_fold_assignment
+python -m unittest tests.test_eval
+python -m unittest tests.test_training_smoke
+python -m unittest tests.test_stage1_smoke
+
+# full regression
+python -m unittest
+```
+
+- There is no confirmed repo-wide `lint`, `format`, or `type-check` command. Do not claim those checks were run unless such tooling is added later.
+
+## Default Working Style
+
+- Start from the relevant entry script or module, then trace the backing `src/*` code.
+- For non-trivial milestone work, read the project context, repository snapshot, plan, issue breakdown, and any active contract freeze before editing.
+- Keep changes small and local to the affected subsystem.
+- Preserve existing artifact names, CLI flags, and file layouts unless the task explicitly changes them.
+- Prefer regenerating script-owned artifacts over manually editing generated CSV or JSON files.
+- Validate the closest test or script first, then broaden only as needed.
+- Update docs when changing paths, artifact names, task definition, evaluation behavior, or CLI behavior.
+
+## Engineering Rules
+
+- The project task is breast-level malignant probability prediction.
+- The current training path is single-image, but validation and reporting are breast-level. Preserve that distinction unless the task explicitly changes it.
+- Splits must remain `breast_id`-grouped. Never introduce image-level leakage between train and validation.
+- Keep all dataset and artifact paths repo-relative. Do not hardcode personal filesystem paths.
+- `data/processed/` and `outputs/` are script-owned outputs. If filenames or schemas change, update every reader, writer, and affected test in the same change.
+- Keep `tests/` on `unittest` conventions unless the repository explicitly migrates.
+- Avoid heavy frameworks, experiment managers, or dependency expansion during Stage 1 maintenance.
+
+## Boundaries
+
+### Always Allowed
+
+- Edit docs, code, and tests within the current Stage 1 scope
+- Run affected `unittest` modules
+- Run reproducible scripts that write under `data/processed/` or `outputs/`
+- Improve clarity, reproducibility, and consistency of current entrypoints
+
+### Ask First
+
+- Add or upgrade dependencies
+- Change the task definition, label semantics, split protocol, or artifact layout
+- Reorganize raw data or make external data part of the mainline flow
+- Launch long GPU jobs or multi-hour training runs
+- Delete artifacts or outputs you did not create
+- Change `docs/ai/WORKFLOW_GUIDE.md`, branch policy, or push/merge workflow
+- Perform broad refactors across `src/data/`, `src/train/`, and `src/eval/` at once
+
+### Never Do
+
+- Modify files in `data/raw/primary/` in place
+- Treat `data/processed/*.csv` or `*.json` as hand-maintained source of truth
+- Commit large raw data, extracted images, checkpoints, or generated `outputs/`
+- Introduce image-level train/val leakage
+- Present current smoke-test metrics as evidence of a strong baseline
+- Claim lint, format, or type-check coverage that the repo does not define
+
+## Done Definition
+
+A change is done only when all applicable items below are true:
+
+- The affected code path works, or the doc change is internally consistent.
+- The nearest relevant verification has been run:
+  - data indexing or split changes: `tests.test_index_builder`, `tests.test_splits`, or `tests.test_split_fold_assignment`
+  - dataset or transform changes: `tests.test_datasets` and/or `scripts/check_dataset_loading.py`
+  - evaluation changes: `tests.test_eval`
+  - training loop changes: `tests.test_training_smoke`
+  - end-to-end train/eval script changes: `tests.test_stage1_smoke`
+  - broad or cross-cutting changes: `python -m unittest`
+- If paths, artifact names, task definition, or data conventions changed, the related docs were updated in the same change.
+- The final report states exactly what changed, what was run, and what remains unverified.
+
+## Delivery Expectations
+
+When handing work back, report:
+
+- files changed
+- why the change was needed
+- commands or tests actually run
+- artifacts or interfaces affected
+- remaining risks, TODOs, or manual follow-up
+- any items not verified
+
+## Keep This File Small
+
+- Do not turn the root `AGENTS.md` into a long SOP library.
+- Add a local `AGENTS.md` only when one subsystem becomes complex enough to need its own rules.
+- Prefer dedicated docs or skills for repeatable flows such as dataset artifact rebuilds or smoke-report interpretation.
