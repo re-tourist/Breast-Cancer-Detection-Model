@@ -118,6 +118,78 @@ class DatasetTransformTestCase(unittest.TestCase):
         self.assertEqual(batch["target"].shape, (1,))
         dataset.close()
 
+    def test_paired_dataset_preserves_cc_then_mlo_order(self) -> None:
+        _, paired_index_path, archive_path = self.create_dataset_files()
+        dataset = PairedBreastDataset(
+            index_csv_path=paired_index_path,
+            archive_path=archive_path,
+            transform=build_eval_transform(image_size=16, num_channels=1),
+        )
+
+        sample = dataset[0]
+        cc_left_mean, cc_right_mean = self.split_half_means(sample["x_cc"][0])
+        mlo_left_mean, mlo_right_mean = self.split_half_means(sample["x_mlo"][0])
+
+        self.assertGreater(cc_left_mean, cc_right_mean)
+        self.assertGreater(mlo_right_mean, mlo_left_mean)
+        self.assertEqual(sample["image_id_cc"], "A_L_CC")
+        self.assertEqual(sample["image_id_mlo"], "A_L_MLO")
+        dataset.close()
+
+    def test_paired_dataset_rejects_invalid_rows(self) -> None:
+        archive_path = self.root / "invalid_train_img.zip"
+        paired_index_path = self.root / "invalid_paired.csv"
+        self.write_archive(archive_path)
+        rows = [
+            {
+                "breast_id": "BROKEN",
+                "pathology": "M",
+                "is_malignant": "1",
+                "image_id_cc": "BROKEN_CC",
+                "image_id_mlo": "",
+                "image_path_cc": "train_img/B_R/B_R_CC.jpg",
+                "image_path_mlo": "train_img/B_R/B_R_CC.jpg",
+                "laterality": "R",
+                "device": "HLG",
+                "birads": "4C",
+            }
+        ]
+        self.write_csv(paired_index_path, PAIRED_BREAST_FIELDS, rows)
+
+        with self.assertRaisesRegex(ValueError, "strict complete"):
+            PairedBreastDataset(
+                index_csv_path=paired_index_path,
+                archive_path=archive_path,
+                transform=build_eval_transform(image_size=16, num_channels=3),
+            )
+
+    def test_paired_dataset_rejects_view_semantic_mismatch(self) -> None:
+        archive_path = self.root / "mismatched_train_img.zip"
+        paired_index_path = self.root / "mismatched_paired.csv"
+        self.write_archive(archive_path)
+        rows = [
+            {
+                "breast_id": "SWAPPED",
+                "pathology": "N",
+                "is_malignant": "0",
+                "image_id_cc": "A_L_MLO",
+                "image_id_mlo": "A_L_CC",
+                "image_path_cc": "train_img/A_L/A_L_MLO.jpg",
+                "image_path_mlo": "train_img/A_L/A_L_CC.jpg",
+                "laterality": "L",
+                "device": "HLG",
+                "birads": "1",
+            }
+        ]
+        self.write_csv(paired_index_path, PAIRED_BREAST_FIELDS, rows)
+
+        with self.assertRaisesRegex(ValueError, "CC semantics"):
+            PairedBreastDataset(
+                index_csv_path=paired_index_path,
+                archive_path=archive_path,
+                transform=build_eval_transform(image_size=16, num_channels=3),
+            )
+
     def create_dataset_files(self) -> tuple[Path, Path, Path]:
         archive_path = self.root / "train_img.zip"
         single_index_path = self.root / "single.csv"
@@ -235,6 +307,12 @@ class DatasetTransformTestCase(unittest.TestCase):
             writer = csv.DictWriter(handle, fieldnames=fieldnames)
             writer.writeheader()
             writer.writerows(rows)
+
+    def split_half_means(self, tensor: torch.Tensor) -> tuple[float, float]:
+        midpoint = tensor.shape[1] // 2
+        left_mean = float(tensor[:, :midpoint].mean().item())
+        right_mean = float(tensor[:, midpoint:].mean().item())
+        return left_mean, right_mean
 
     def make_rgb_image(self, width: int, height: int, bright_left: bool) -> np.ndarray:
         pixels = np.zeros((height, width), dtype=np.uint8)
