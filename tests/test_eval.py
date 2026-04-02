@@ -10,7 +10,9 @@ from pathlib import Path
 import torch
 from torch import nn
 
-from scripts.run_eval import derive_default_output_dir, resolve_safe_output_dir
+from argparse import Namespace
+
+from scripts.run_eval import build_eval_config, derive_default_output_dir, resolve_safe_output_dir
 from src.eval import (
     PAIRED_BREAST_LEVEL_PREDICTION_FIELDS,
     aggregate_prediction_rows,
@@ -198,6 +200,35 @@ class EvaluationTestCase(unittest.TestCase):
         self.assertNotEqual(actual_output_dir, requested_output_dir)
         self.assertEqual(actual_output_dir.parent, requested_output_dir.parent)
         self.assertTrue(actual_output_dir.name.startswith(f"{requested_output_dir.name}_"))
+
+    def test_eval_config_records_actual_checkpoint_and_output_dir(self) -> None:
+        args = Namespace(
+            dataset="paired",
+            archive_path=Path("data/raw/primary/train_img.zip"),
+            image_root=None,
+            image_size=1024,
+            batch_size=1,
+            num_workers=0,
+            aggregation="mean",
+            output_dir=None,
+        )
+        checkpoint_path = self.root / "m2_baseline_bs2_lr1e4" / "best_model.pt"
+        val_split_path = self.root / "primary_paired_breast_split_val.csv"
+        output_dir = checkpoint_path.parent / "eval"
+
+        config = build_eval_config(
+            args=args,
+            checkpoint_path=checkpoint_path,
+            val_split_path=val_split_path,
+            output_dir=output_dir,
+            device=torch.device("cpu"),
+        )
+
+        self.assertEqual(config["dataset"], "paired")
+        self.assertEqual(config["checkpoint"], str(checkpoint_path))
+        self.assertEqual(config["output_dir"], str(output_dir))
+        self.assertEqual(config["aggregation"], "paired_direct")
+        self.assertIsNone(config["requested_output_dir"])
 
     def make_prediction_row(self, breast_id: str, image_id: str, target: int, prediction: float) -> dict[str, object]:
         view = "CC" if image_id.endswith("CC") else "MLO"

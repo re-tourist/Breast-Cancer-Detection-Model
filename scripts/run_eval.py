@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import json
 import sys
 from datetime import datetime
 from pathlib import Path
@@ -40,6 +41,7 @@ DEFAULT_PAIRED_CHECKPOINT_PATH = REPO_ROOT / "outputs" / "m2_baseline" / "best_m
 DEFAULT_PAIRED_VAL_SPLIT = REPO_ROOT / "data" / "processed" / "splits" / "primary_paired_breast_split_val.csv"
 DEFAULT_PAIRED_OUTPUT_DIR = REPO_ROOT / "outputs" / "m2_baseline" / "eval"
 PAIRED_AGGREGATION_LABEL = "paired_direct"
+EVAL_CONFIG_FILENAME = "eval_config.json"
 
 
 def parse_args() -> argparse.Namespace:
@@ -63,6 +65,18 @@ def main() -> int:
     output_dir, output_redirected = resolve_safe_output_dir(requested_output_dir)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     ensure_checkpoint_exists(checkpoint_path)
+    output_dir.mkdir(parents=True, exist_ok=True)
+    eval_config_path = output_dir / EVAL_CONFIG_FILENAME
+    write_json(
+        eval_config_path,
+        build_eval_config(
+            args=args,
+            checkpoint_path=checkpoint_path,
+            val_split_path=val_split_path,
+            output_dir=output_dir,
+            device=device,
+        ),
+    )
 
     print("Starting evaluation", flush=True)
     print(f"- dataset: {args.dataset}", flush=True)
@@ -94,6 +108,7 @@ def main() -> int:
         print(f"- breast predictions: {len(evaluation_result['breast_prediction_rows'])}")
         print(f"- breast auroc: {format_metric_value(evaluation_result['metrics']['breast_auroc'])}")
         print(f"- auroc available: {evaluation_result['metrics']['auroc_available']}")
+        print(f"- wrote: {eval_config_path}")
         print(f"- wrote: {output_paths['image_predictions']}")
         print(f"- wrote: {output_paths['breast_predictions']}")
         print(f"- wrote: {output_paths['metrics']}")
@@ -118,6 +133,7 @@ def main() -> int:
     print(f"- breast auroc: {format_metric_value(evaluation_result['metrics']['breast_auroc'])}")
     print(f"- auroc available: {evaluation_result['metrics']['auroc_available']}")
     print("- image predictions: not generated for paired evaluation")
+    print(f"- wrote: {eval_config_path}")
     print(f"- wrote: {output_paths['breast_predictions']}")
     print(f"- wrote: {output_paths['metrics']}")
     return 0
@@ -152,6 +168,30 @@ def derive_default_output_dir(
     if not user_provided_checkpoint:
         return fallback_output_dir
     return checkpoint_path.parent / "eval"
+
+
+def build_eval_config(
+    args: argparse.Namespace,
+    checkpoint_path: Path,
+    val_split_path: Path,
+    output_dir: Path,
+    device: torch.device,
+) -> dict[str, object]:
+    return {
+        "dataset": args.dataset,
+        "checkpoint": str(checkpoint_path),
+        "val_split": str(val_split_path),
+        "archive_path": str(args.archive_path),
+        "image_root": None if args.image_root is None else str(args.image_root),
+        "image_size": args.image_size,
+        "batch_size": args.batch_size,
+        "num_workers": args.num_workers,
+        "aggregation": args.aggregation if args.dataset == "single" else PAIRED_AGGREGATION_LABEL,
+        "device": str(device),
+        "device_description": describe_device(device),
+        "output_dir": str(output_dir),
+        "requested_output_dir": None if args.output_dir is None else str(args.output_dir),
+    }
 
 
 def resolve_safe_output_dir(requested_output_dir: Path) -> tuple[Path, bool]:
@@ -292,6 +332,12 @@ def format_metric_value(value: float | None) -> str:
     if value is None:
         return "None"
     return f"{value:.4f}"
+
+
+def write_json(path: Path, payload: dict[str, object]) -> None:
+    with path.open("w", encoding="utf-8") as handle:
+        json.dump(payload, handle, indent=2, ensure_ascii=False)
+        handle.write("\n")
 
 
 if __name__ == "__main__":

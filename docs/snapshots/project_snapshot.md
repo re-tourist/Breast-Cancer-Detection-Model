@@ -78,7 +78,7 @@ Stable / sensitive areas:
 
 - `scripts/run_eval.py`
   - `--dataset single` writes image-level plus breast-level artifacts
-  - `--dataset paired` writes breast-level-only artifacts
+  - `--dataset paired` writes breast-level predictions, metrics, and eval context artifacts
 - `src/eval/pipeline.py`
 - `src/eval/aggregation.py`
 

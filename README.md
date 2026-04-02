@@ -14,7 +14,8 @@ Current status:
 - formal Linux server experimentation has started:
   - run A at `batch_size=1`, `lr=1e-3` exposed unstable optimization and weak paired performance
   - run B at `batch_size=2`, `lr=1e-4` produced a much stronger training-side validation curve
-  - the latest run still needs one clean checkpoint-matched evaluation pass before Stage 2 can be closed
+  - a later checkpoint-matched eval reported `breast_auroc=0.9665`, but it was written by an older server copy of `run_eval.py` into the legacy `outputs/m2_baseline/eval/` directory
+  - one clean eval rerun on the updated script is still recommended before Stage 2 is closed
 
 ## Current Stage and Scope
 
@@ -131,6 +132,12 @@ python scripts/train_baseline.py --dataset paired --image-size 1024 --batch-size
 python scripts/run_eval.py --dataset paired --checkpoint outputs/m2_baseline/best_model.pt --image-size 1024 --batch-size 1
 ```
 
+This writes:
+
+- `breast_level_predictions.csv`
+- `breast_level_metrics.json`
+- `eval_config.json`
+
 7. Run the dedicated smoke scripts:
 
 ```bash
@@ -163,6 +170,6 @@ For the current best-known rerun analysis and eval mismatch note, read `docs/han
 
 ## Next Steps
 
-1. Run a clean eval against `outputs/m2_baseline_bs2_lr1e4/best_model.pt`.
-2. Review `outputs/m2_baseline_bs2_lr1e4/eval/` for metric quality, prediction spread, and error patterns.
+1. Pull the latest branch on the Linux server and rerun eval against `outputs/m2_baseline_bs2_lr1e4/best_model.pt`.
+2. Review `outputs/m2_baseline_bs2_lr1e4/eval/` for metric quality, prediction spread, error patterns, and `eval_config.json`.
 3. Decide whether Stage 2 can be closed or should continue with staged freezing or gradient accumulation.
