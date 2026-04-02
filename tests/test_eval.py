@@ -10,6 +10,7 @@ from pathlib import Path
 import torch
 from torch import nn
 
+from scripts.run_eval import derive_default_output_dir, resolve_safe_output_dir
 from src.eval import (
     PAIRED_BREAST_LEVEL_PREDICTION_FIELDS,
     aggregate_prediction_rows,
@@ -176,6 +177,27 @@ class EvaluationTestCase(unittest.TestCase):
         for row in breast_rows_written:
             self.assertGreaterEqual(float(row["prediction"]), 0.0)
             self.assertLessEqual(float(row["prediction"]), 1.0)
+
+    def test_eval_output_dir_defaults_to_checkpoint_parent_when_checkpoint_is_explicit(self) -> None:
+        checkpoint_path = self.root / "custom_run" / "best_model.pt"
+        output_dir = derive_default_output_dir(
+            checkpoint_path=checkpoint_path,
+            fallback_output_dir=self.root / "fallback_eval",
+            user_provided_checkpoint=True,
+        )
+        self.assertEqual(output_dir, checkpoint_path.parent / "eval")
+
+    def test_eval_output_dir_preserves_existing_non_empty_directory(self) -> None:
+        requested_output_dir = self.root / "eval_output"
+        requested_output_dir.mkdir(parents=True, exist_ok=False)
+        (requested_output_dir / "breast_level_metrics.json").write_text("{}", encoding="utf-8")
+
+        actual_output_dir, redirected = resolve_safe_output_dir(requested_output_dir)
+
+        self.assertTrue(redirected)
+        self.assertNotEqual(actual_output_dir, requested_output_dir)
+        self.assertEqual(actual_output_dir.parent, requested_output_dir.parent)
+        self.assertTrue(actual_output_dir.name.startswith(f"{requested_output_dir.name}_"))
 
     def make_prediction_row(self, breast_id: str, image_id: str, target: int, prediction: float) -> dict[str, object]:
         view = "CC" if image_id.endswith("CC") else "MLO"

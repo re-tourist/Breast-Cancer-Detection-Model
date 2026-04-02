@@ -72,8 +72,8 @@ High-frequency entrypoints:
 ## Environment And Commands
 
 - Observed locally during validation: `Python 3.12.8`
-- `README.md` currently names these runtime dependencies: `numpy`, `Pillow`, `torch`, `scikit-learn`
-- `requirements.txt` is empty. Do not invent a setup flow; if environment bootstrapping matters, mark it `TODO / verify with maintainers`.
+- `README.md` currently names these runtime dependencies: `numpy`, `Pillow`, `torch`, `torchvision`, `scikit-learn`
+- `requirements.txt` currently lists the minimal runtime dependencies. It is not version-locked and should not be treated as a fully curated environment manifest.
 
 ```bash
 # inspect current raw dataset assumptions
@@ -92,7 +92,7 @@ python scripts/check_dataset_loading.py --dataset paired --batch-size 2 --num-ba
 python scripts/train_baseline.py --epochs 1 --batch-size 8 --image-size 512
 
 # run breast-level evaluation from a checkpoint
-python scripts/run_eval.py --checkpoint outputs/m1_baseline/best_model.pt --image-size 512 --output-dir outputs/m1_baseline/eval
+python scripts/run_eval.py --dataset paired --checkpoint outputs/m2_baseline/best_model.pt --image-size 1024 --batch-size 1
 
 # run the end-to-end Stage 1 smoke flow
 python scripts/run_stage1_smoke.py
@@ -125,6 +125,7 @@ python -m unittest
 - Prefer regenerating script-owned artifacts over manually editing generated CSV or JSON files.
 - Validate the closest test or script first, then broaden only as needed.
 - Update docs when changing paths, artifact names, task definition, evaluation behavior, or CLI behavior.
+- For repeated server evaluation work, prefer checkpoint-matched output directories and avoid reusing stale shell variables from older runs.
 
 ## Engineering Rules
 

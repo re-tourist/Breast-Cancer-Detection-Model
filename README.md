@@ -11,7 +11,10 @@ Current status:
 - Stage 1 single-image training remains available as a fallback path
 - Stage 2 paired CC/MLO training, direct breast-level evaluation, and a dedicated Stage 2 smoke script are implemented
 - the paired contract is frozen to strict complete `(CC, MLO)` samples, fixed `(CC, MLO)` ordering, and probability-valued `prediction` exports
-- a full real-data Stage 2 baseline run at `1024` resolution is still pending on the Linux training environment
+- formal Linux server experimentation has started:
+  - run A at `batch_size=1`, `lr=1e-3` exposed unstable optimization and weak paired performance
+  - run B at `batch_size=2`, `lr=1e-4` produced a much stronger training-side validation curve
+  - the latest run still needs one clean checkpoint-matched evaluation pass before Stage 2 can be closed
 
 ## Current Stage and Scope
 
@@ -79,7 +82,7 @@ Current scripts require the runtime environment to provide:
 Notes:
 - keep the provided raw dataset files under `data/raw/primary/`
 - do not edit raw files in place
-- `requirements.txt` is still not curated, so dependency locking remains a follow-up item
+- `requirements.txt` now lists the minimal runtime dependencies, but version locking remains a follow-up item
 
 ## Workflow
 
@@ -119,13 +122,13 @@ python scripts/train_baseline.py --dataset single --epochs 1 --batch-size 8 --im
 5. Train the Stage 2 paired baseline:
 
 ```bash
-python scripts/train_baseline.py --dataset paired --image-size 1024 --epochs 10 --output-dir outputs/m2_baseline
+python scripts/train_baseline.py --dataset paired --image-size 1024 --batch-size 2 --epochs 10 --lr 1e-4 --output-dir outputs/m2_baseline
 ```
 
 6. Run evaluation from a checkpoint:
 
 ```bash
-python scripts/run_eval.py --dataset paired --checkpoint outputs/m2_baseline/best_model.pt --image-size 1024 --output-dir outputs/m2_baseline/eval
+python scripts/run_eval.py --dataset paired --checkpoint outputs/m2_baseline/best_model.pt --image-size 1024 --batch-size 1
 ```
 
 7. Run the dedicated smoke scripts:
@@ -138,6 +141,8 @@ python scripts/run_stage2_smoke.py
 For a fuller Stage 1 runbook and artifact map, read `docs/handoff/stage1_handoff.md`.
 For the Stage 1 foundation closeout, read `docs/handoff/stage1_closeout.md`.
 For the current Stage 2 engineering closeout and remaining risks, read `docs/handoff/stage2_closeout.md`.
+For the failed first server run diagnosis, read `docs/handoff/stage2_problem_report_20260330.md`.
+For the current best-known rerun analysis and eval mismatch note, read `docs/handoff/stage2_analysis_report_20260330_bs2_lr1e4.md`.
 
 ## Current Progress
 
@@ -151,13 +156,13 @@ For the current Stage 2 engineering closeout and remaining risks, read `docs/han
 
 ## Current Limitations
 
-- the formal Stage 2 baseline result still depends on a Linux server run at `1024` resolution
+- the latest promising Stage 2 run still needs a clean checkpoint-matched evaluation artifact set
 - local smoke and unit tests only prove plumbing and contract correctness; they do not prove final model quality
 - full cross-validation training is still not implemented as a mainline runner
 - dependency packaging remains lightweight and not yet cleaned up for broader handoff
 
 ## Next Steps
 
-1. Run the formal Stage 2 baseline on the Linux training environment with the frozen paired contract.
-2. Review `outputs/m2_baseline/` and `outputs/m2_baseline/eval/` for collapse risk, metric quality, and artifact integrity.
-3. Decide whether Stage 2 can be closed cleanly or should roll directly into the next paired-baseline improvement milestone.
+1. Run a clean eval against `outputs/m2_baseline_bs2_lr1e4/best_model.pt`.
+2. Review `outputs/m2_baseline_bs2_lr1e4/eval/` for metric quality, prediction spread, and error patterns.
+3. Decide whether Stage 2 can be closed or should continue with staged freezing or gradient accumulation.

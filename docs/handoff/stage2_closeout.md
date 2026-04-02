@@ -9,7 +9,7 @@
   - [x] partially complete
   - [ ] blocked
   - [x] handed off with risks
-- Date: 2026-03-27
+- Date: 2026-04-02
 - Related stage / branch:
   - `codex/docs-stage2-freeze`
   - `codex/feat-model-stage2`
@@ -22,243 +22,296 @@
 
 ## 1. Executive Summary
 
-Stage 2 was meant to move the repository from the Stage 1 single-image fallback toward the first real paired breast-level baseline.
+Stage 2 was supposed to move the repository from the Stage 1 single-image fallback to the first strict paired breast-level baseline.
 
-That implementation work is now in place:
+That engineering work is complete:
 - strict paired `(CC, MLO)` loading is enforced
-- a shared-backbone EfficientNet-B2 paired baseline is implemented
-- training and evaluation entrypoints now support `--dataset {single,paired}`
-- paired evaluation exports only breast-level predictions and metrics
-- a dedicated Stage 2 smoke script and regression tests were added
+- the shared-backbone EfficientNet-B2 paired model is implemented
+- training and evaluation entrypoints support `--dataset {single,paired}`
+- paired evaluation writes only breast-level artifacts
+- a dedicated Stage 2 smoke path and regression coverage exist
 
-What is still missing is the formal real-data Stage 2 baseline run on the Linux training environment at `1024` resolution.
+Formal Linux server experimentation has also started:
+- run A (`batch_size=1`, `lr=1e-3`) completed on GPU but failed as a useful baseline, with `breast_auroc=0.5389` and strong negative-side collapse
+- run B (`batch_size=2`, `lr=1e-4`) showed a much healthier training curve and a best training-side validation `breast_auroc=0.9668`
+- the evaluation command after run B accidentally pointed to the older run A checkpoint, so the new run still needs one clean checkpoint-matched evaluation pass
 
-So Stage 2 engineering implementation is ready, but Stage 2 should not be treated as fully closed from a modeling / evidence perspective yet.
+The Stage 2 implementation is operational and the latest optimization regime looks promising, but the milestone should remain open until `outputs/m2_baseline_bs2_lr1e4/best_model.pt` is evaluated cleanly.
 
 ---
 
 ## 2. What Was Completed
 
-- [x] Stage 2 contract freeze was synced to the repo docs
-  - 对应代码/文档位置：
+- [x] Stage 2 contract freeze and documentation sync
+  - Corresponding files:
     - `docs/contracts/contract_freeze_stage2.md`
     - `docs/plan/plan_stage2.md`
     - `docs/plan/issue_stage2.md`
     - `docs/review/code_review.md`
-  - 如何验证：
-    - manual doc review against the frozen paired contract
-  - 是否已经达到预期：
-    - yes; the strict pair, fixed order, and probability-export rules are now explicit
+  - Validation:
+    - manual consistency review against the frozen paired contract
+  - Result:
+    - the strict pair, fixed order, and probability-export rules are explicit and enforced
 
-- [x] Paired model, train loop, and checkpoint-selection path were implemented
-  - 对应代码/文档位置：
+- [x] Paired model, training path, and checkpoint-selection path
+  - Corresponding files:
     - `src/models/baseline.py`
     - `src/train/trainer.py`
     - `scripts/train_baseline.py`
-  - 如何验证：
+  - Validation:
     - `python -m unittest tests.test_training_smoke`
     - `python -m unittest tests.test_stage2_smoke`
-  - 是否已经达到预期：
-    - yes for local engineering scope; the paired path trains and selects checkpoints by `breast_auroc`
+  - Result:
+    - the paired path trains and selects checkpoints by `breast_auroc`
 
-- [x] Paired evaluation path and artifact contract were implemented
-  - 对应代码/文档位置：
+- [x] Paired evaluation path and artifact contract
+  - Corresponding files:
     - `src/eval/pipeline.py`
     - `src/eval/__init__.py`
     - `scripts/run_eval.py`
-  - 如何验证：
+  - Validation:
     - `python -m unittest tests.test_eval`
     - `python -m unittest tests.test_stage2_smoke`
-  - 是否已经达到预期：
-    - yes; paired eval writes only `breast_level_predictions.csv` and `breast_level_metrics.json`
+  - Result:
+    - paired eval writes only `breast_level_predictions.csv` and `breast_level_metrics.json`
 
-- [x] Strict paired dataset validation and view-order checks were implemented
-  - 对应代码/文档位置：
+- [x] Strict paired dataset validation and view-order checks
+  - Corresponding files:
     - `src/data/datasets.py`
     - `tests/test_datasets.py`
-  - 如何验证：
+  - Validation:
     - `python scripts/check_dataset_loading.py --dataset paired --batch-size 2 --num-batches 1`
     - `python -m unittest tests.test_datasets`
-  - 是否已经达到预期：
-    - yes; incomplete pairs, duplicate views, and swapped `CC` / `MLO` semantics are rejected
+  - Result:
+    - incomplete pairs, duplicate views, and swapped `CC` / `MLO` semantics are rejected
 
-- [x] Stage 2 smoke script and smoke regression test were added
-  - 对应代码/文档位置：
-    - `scripts/run_stage2_smoke.py`
-    - `tests/test_stage2_smoke.py`
-  - 如何验证：
-    - `python -m unittest tests.test_stage2_smoke`
-  - 是否已经达到预期：
-    - yes for local synthetic smoke; not yet for the formal full-data server run
+- [x] Formal Linux server run A and failure diagnosis
+  - Corresponding artifacts / docs:
+    - `outputs/m2_baseline_20260330_021213/metrics_summary.json`
+    - `outputs/m2_baseline_20260330_021213/eval/breast_level_predictions.csv`
+    - `outputs/m2_baseline_20260330_021213/eval/breast_level_metrics.json`
+    - `docs/handoff/stage2_problem_report_20260330.md`
+  - Validation:
+    - manual metric review and prediction-distribution analysis
+  - Result:
+    - the first server run was judged an optimization failure, not a contract or runtime failure
+
+- [x] Follow-up training run B and evaluation workflow hardening
+  - Corresponding files / docs:
+    - `scripts/run_eval.py`
+    - `tests/test_eval.py`
+    - `run_order.md`
+    - `docs/handoff/stage2_analysis_report_20260330_bs2_lr1e4.md`
+  - Validation:
+    - `python -m unittest tests.test_eval`
+    - manual review of the run B training log
+  - Result:
+    - evaluation now prints the actual checkpoint/device/output dir, defaults to checkpoint-matched eval directories, and preserves non-empty eval outputs instead of overwriting them
 
 ---
 
 ## 3. What Was Not Completed
 
-- [x] Formal Linux server baseline run at `1024` resolution
-  - 为什么没完成：
-    - this workspace was used for implementation and light validation only; the user explicitly asked to hand off heavier training to the Linux server
-  - 是否应该进入下一个 milestone：
-    - yes; this is the immediate next action before Stage 2 can be cleanly closed
+- [x] Clean evaluation of the new `batch_size=2`, `lr=1e-4` checkpoint
+  - Why not completed:
+    - the eval command after run B reused an older shell `RUN_DIR` and targeted run A's checkpoint instead of `outputs/m2_baseline_bs2_lr1e4/best_model.pt`
+  - Should this roll into the next step:
+    - yes; this is the immediate next action
 
-- [x] Formal Stage 2 performance interpretation
-  - 为什么没完成：
-    - no real baseline artifact under `outputs/m2_baseline/` exists yet from the frozen server configuration
-  - 是否应该进入下一个 milestone：
-    - yes; the result quality, collapse risk, and memory behavior must be reviewed after the server run
+- [x] Final Stage 2 close decision
+  - Why not completed:
+    - the most promising run still lacks a clean evaluation artifact set
+  - Should this roll into the next step:
+    - yes; close/no-close depends on the checkpoint-matched eval result
 
-- [x] PR creation / remote review handoff
-  - 为什么没完成：
-    - implementation and local validation were completed, but no push / PR was opened from this workspace
-  - 是否应该进入下一个 milestone：
-    - yes if you want GitHub review before merge
+- [x] Final prediction-distribution review for run B
+  - Why not completed:
+    - no clean `breast_level_predictions.csv` exists yet for the new checkpoint
+  - Should this roll into the next step:
+    - yes; inspect the new prediction spread immediately after the clean eval
 
 ---
 
 ## 4. Key Files and Changes
 
 ### Code
+
 - `src/models/baseline.py`
-  - 作用：single fallback model plus paired EfficientNet-B2 model definitions
-  - 在本 milestone 中承担什么责任：
-    - added `PairedEfficientNetB2Baseline` with fixed `(CC, MLO)` late fusion
+  - Role:
+    - single fallback model plus paired EfficientNet-B2 model definitions
+  - Stage 2 responsibility:
+    - provides `PairedEfficientNetB2Baseline` with fixed `(CC, MLO)` late fusion
 
 - `src/train/trainer.py`
-  - 作用：train / validate / checkpoint-selection utilities
-  - 在本 milestone 中承担什么责任：
-    - added paired loaders, paired train / validate loops, and `breast_auroc`-first checkpoint selection
+  - Role:
+    - train / validate / checkpoint-selection utilities
+  - Stage 2 responsibility:
+    - provides paired loaders, paired train / validate loops, and `breast_auroc`-first checkpoint selection
 
 - `src/data/datasets.py`
-  - 作用：single and paired dataset loading
-  - 在本 milestone 中承担什么责任：
-    - enforced strict complete paired rows and fixed `(CC, MLO)` semantics
+  - Role:
+    - single and paired dataset loading
+  - Stage 2 responsibility:
+    - enforces strict complete paired rows and fixed `(CC, MLO)` semantics
 
 - `src/eval/pipeline.py`
-  - 作用：prediction collection and artifact writing
-  - 在本 milestone 中承担什么责任：
-    - added paired breast-level prediction collection and breast-level-only export behavior
+  - Role:
+    - prediction collection and artifact writing
+  - Stage 2 responsibility:
+    - collects paired breast-level predictions and writes breast-level-only paired outputs
 
 ### Docs
+
 - `docs/contracts/contract_freeze_stage2.md`
-  - 作用：Stage 2 frozen interface / semantics
-  - 是否已与实现同步：
-    - yes
+  - Role:
+    - frozen Stage 2 interface and semantics
+  - Sync state:
+    - yes; still matches the implementation
 
-- `README.md`
-  - 作用：top-level current-state description
-  - 是否已与实现同步：
-    - yes; now reflects Stage 2 active state and paired commands
+- `docs/handoff/stage2_problem_report_20260330.md`
+  - Role:
+    - documents why run A failed and why the failure was attributed to optimization instability
+  - Sync state:
+    - yes; grounded in real server artifacts
 
-- `docs/snapshots/project_snapshot.md`
-  - 作用：repo snapshot for future agents
-  - 是否已与实现同步：
-    - yes; now reflects Stage 2 active entrypoints
+- `docs/handoff/stage2_analysis_report_20260330_bs2_lr1e4.md`
+  - Role:
+    - records the interpretation of run B training and the mistaken old-checkpoint evaluation
+  - Sync state:
+    - yes; describes the current outstanding validation gap
 
 ### Config / Scripts / Assets
+
 - `scripts/train_baseline.py`
-  - 作用：public training entrypoint
-  - 当前是否可直接复用：
+  - Role:
+    - public training entrypoint
+  - Reuse state:
     - yes; supports both `single` and `paired`
 
 - `scripts/run_eval.py`
-  - 作用：public evaluation entrypoint
-  - 当前是否可直接复用：
-    - yes; paired mode writes breast-level-only artifacts
+  - Role:
+    - public evaluation entrypoint
+  - Reuse state:
+    - yes; now safer for repeated server experimentation
 
-- `scripts/run_stage2_smoke.py`
-  - 作用：paired end-to-end smoke run and contract report
-  - 当前是否可直接复用：
-    - yes for plumbing checks; not a substitute for the formal baseline run
+- `run_order.md`
+  - Role:
+    - Linux server runbook
+  - Reuse state:
+    - yes; updated to reduce shell-variable misuse and output-directory confusion
 
 ---
 
 ## 5. Validation Summary
 
 ### Validation Run
+
 - `python scripts/check_dataset_loading.py --dataset paired --batch-size 2 --num-batches 1`
 - `python -m unittest tests.test_datasets tests.test_eval tests.test_training_smoke tests.test_stage1_smoke tests.test_stage2_smoke`
+- server run A:
+  - `python scripts/train_baseline.py --dataset paired --image-size 1024 --batch-size 1 --epochs 10 --lr 1e-3 --output-dir outputs/m2_baseline_20260330_021213`
+  - `python scripts/run_eval.py --dataset paired --checkpoint outputs/m2_baseline_20260330_021213/best_model.pt --image-size 1024 --batch-size 1 --output-dir outputs/m2_baseline_20260330_021213/eval`
+- server run B training:
+  - `python scripts/train_baseline.py --dataset paired --image-size 1024 --batch-size 2 --epochs 10 --lr 1e-4 --output-dir outputs/m2_baseline_bs2_lr1e4`
+- latest local regression after eval hardening:
+  - `python -m unittest tests.test_eval`
 
 ### What These Checks Actually Prove
-- 证明了什么：
-  - the real paired split still loads after the stricter paired validation was added
-  - single fallback behavior still passes its smoke regression
-  - paired training / evaluation plumbing works end to end on synthetic smoke data
-  - paired exports preserve probability range and do not generate image-level CSVs
-  - swapped or malformed paired rows are rejected
-- 没证明什么：
-  - no real Stage 2 baseline quality claim
-  - no evidence yet that the `1024` paired run fits the target Linux GPU memory budget
-  - no evidence yet that the paired baseline avoids collapse on the real validation split
+
+- Proved:
+  - the real paired split loads under the strict paired rules
+  - single fallback behavior still passes smoke
+  - paired training / evaluation plumbing works end to end on local smoke-sized data
+  - run A was a real GPU run and exposed a weak collapsed baseline
+  - run B training is far more stable than run A
+  - eval artifact writing is now guarded against silent overwrite on repeated runs
+
+- Not proved:
+  - that run B already has a final accepted evaluation result
+  - that the latest paired baseline can be closed as the official Stage 2 outcome
+  - that no further optimization iteration is needed after the clean run B eval
 
 ### Missing or Weak Validation
-- 缺失验证 1:
-  - formal real-data paired run at `1024` resolution with the frozen config
-- 缺失验证 2:
-  - human review of final training outputs and whether Stage 2 is good enough to close
+
+- Missing validation 1:
+  - clean eval of `outputs/m2_baseline_bs2_lr1e4/best_model.pt`
+- Missing validation 2:
+  - prediction-distribution and hardest-error review for the clean run B eval artifacts
 
 ---
 
 ## 6. Risks and Known Limitations
 
 ### P0 / blocking
-- none found in the local implementation path after regression testing
+
+- Stage 2 still lacks a clean checkpoint-matched eval artifact set for the most promising server run
 
 ### P1 / serious but not blocking
-- Stage 2 still lacks the formal real-data baseline run, so no trustworthy modeling conclusion exists yet
-- paired training currently depends on torchvision pretrained EfficientNet-B2 weights being available in the runtime environment
+
+- run A proved the baseline can still collapse badly under unstable optimization settings
+- repeated shell use on the server can still confuse train/eval pairing if commands are edited carelessly
+- paired training still depends on torchvision pretrained EfficientNet-B2 weights being available in the runtime environment
 
 ### P2 / should improve later
+
 - there is still no mainline full-CV paired runner
-- smoke checks prove contract correctness, but not final performance quality
+- smoke checks prove contract correctness, not final quality
 
 ---
 
 ## 7. Contract / Scope Notes
 
-- [x] 完全在冻结 contract 内执行
-- [ ] 有小范围偏离，但已说明
-- [ ] 出现了 contract 级别问题
-- [ ] 发生了实际 scope 漂移
-- [ ] 没有正式 contract freeze
+- [x] completely executed inside the frozen contract
+- [ ] minor scope drift occurred but was documented
+- [ ] contract-level problem occurred
+- [ ] actual milestone scope drift occurred
+- [ ] no formal contract freeze existed
 
-补充说明：
-- public CLI expansion was limited to the planned `--dataset {single,paired}` switch
+Additional notes:
+
+- public CLI expansion remained limited to `--dataset {single,paired}`
 - Stage 1 single-image fallback behavior was preserved
-- paired mode now enforces the frozen rules:
+- paired mode still enforces:
   - strict complete `(CC, MLO)` samples only
   - fixed `(CC, MLO)` ordering across dataset / model / eval / export
   - `prediction` exported as sigmoid probability
+- the eval hardening change improved workflow safety without changing the paired artifact contract
 
 ---
 
 ## 8. Recommended Next Entry Point
 
 ### Recommended first task
-- Run the formal Stage 2 paired baseline on the Linux training environment with the frozen config.
+
+- run a clean evaluation against `outputs/m2_baseline_bs2_lr1e4/best_model.pt`
 
 ### Recommended first files to read
+
 - `docs/contracts/contract_freeze_stage2.md`
-- `scripts/train_baseline.py`
+- `docs/handoff/stage2_problem_report_20260330.md`
+- `docs/handoff/stage2_analysis_report_20260330_bs2_lr1e4.md`
 - `scripts/run_eval.py`
-- `scripts/run_stage2_smoke.py`
-- `docs/handoff/stage2_closeout.md`
+- `run_order.md`
 
 ### Recommended first checks
-- `python scripts/train_baseline.py --dataset paired --image-size 1024 --epochs 10 --batch-size <fit-on-server> --output-dir outputs/m2_baseline`
-- `python scripts/run_eval.py --dataset paired --checkpoint outputs/m2_baseline/best_model.pt --image-size 1024 --output-dir outputs/m2_baseline/eval`
-- review `outputs/m2_baseline/eval/breast_level_predictions.csv` and `outputs/m2_baseline/eval/breast_level_metrics.json`
+
+- `python scripts/run_eval.py --dataset paired --checkpoint outputs/m2_baseline_bs2_lr1e4/best_model.pt --image-size 1024 --batch-size 1`
+- review `outputs/m2_baseline_bs2_lr1e4/eval/breast_level_predictions.csv`
+- review `outputs/m2_baseline_bs2_lr1e4/eval/breast_level_metrics.json`
 
 ### Recommended decision to make before coding
-- decide whether Stage 2 should be closed after the formal server run or extended for another paired-baseline iteration
-- decide whether a GitHub PR review is required before merging into the long-lived feature branches
+
+- decide whether the clean run B eval is strong enough to close Stage 2
+- if not, decide whether the next iteration should prioritize staged freezing or gradient accumulation
 
 ---
 
 ## 9. Handoff Guidance
 
-- Do not treat the local smoke pass as evidence of a strong baseline.
-- Do not relax the strict paired contract to “make the run work”.
-- If the `1024` paired run cannot fit even with batch size `1`, stop and ask the user instead of silently changing the contract.
+- Do not treat run A as the current best baseline; it is the diagnosed failure case.
+- Do not treat run B training-side AUROC as final evidence until the clean eval artifacts exist.
+- Do not relax the strict paired contract to make experiments easier.
+- When using explicit `--output-dir` during training, use the matching checkpoint path during eval instead of relying on an old shell `RUN_DIR`.
 - If any future change touches task meaning, split protocol, or the frozen paired export semantics, re-freeze before implementation.
 
 ---
@@ -270,5 +323,6 @@ So Stage 2 engineering implementation is ready, but Stage 2 should not be treate
 - [x] milestone should remain open pending one last validation
 - [ ] milestone should not be closed because the result is not yet reliable
 
-最后一句总结：
-- 当前结论：Stage 2 implementation is ready for the formal server run, but Stage 2 should remain open until that real paired baseline is executed and reviewed.
+Current conclusion:
+
+Stage 2 implementation is complete and current optimization evidence is encouraging, but Stage 2 should remain open until `outputs/m2_baseline_bs2_lr1e4/best_model.pt` is evaluated cleanly and the resulting artifacts are reviewed.

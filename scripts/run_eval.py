@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import sys
+from datetime import datetime
 from pathlib import Path
 
 import torch
@@ -58,8 +59,19 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> int:
     args = parse_args()
-    checkpoint_path, val_split_path, output_dir = resolve_runtime_paths(args)
+    checkpoint_path, val_split_path, requested_output_dir = resolve_runtime_paths(args)
+    output_dir, output_redirected = resolve_safe_output_dir(requested_output_dir)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    ensure_checkpoint_exists(checkpoint_path)
+
+    print("Starting evaluation", flush=True)
+    print(f"- dataset: {args.dataset}", flush=True)
+    print(f"- device: {describe_device(device)}", flush=True)
+    print(f"- checkpoint: {checkpoint_path}", flush=True)
+    print(f"- val split: {val_split_path}", flush=True)
+    if output_redirected:
+        print(f"- requested output dir preserved: {requested_output_dir}", flush=True)
+    print(f"- output dir: {output_dir}", flush=True)
 
     if args.dataset == "single":
         evaluation_result, output_paths = run_single_evaluation(
@@ -115,13 +127,62 @@ def resolve_runtime_paths(args: argparse.Namespace) -> tuple[Path, Path, Path]:
     if args.dataset == "single":
         checkpoint_path = args.checkpoint or DEFAULT_SINGLE_CHECKPOINT_PATH
         val_split_path = args.val_split or DEFAULT_SINGLE_VAL_SPLIT
-        output_dir = args.output_dir or DEFAULT_SINGLE_OUTPUT_DIR
+        output_dir = args.output_dir or derive_default_output_dir(
+            checkpoint_path=checkpoint_path,
+            fallback_output_dir=DEFAULT_SINGLE_OUTPUT_DIR,
+            user_provided_checkpoint=args.checkpoint is not None,
+        )
         return checkpoint_path, val_split_path, output_dir
 
     checkpoint_path = args.checkpoint or DEFAULT_PAIRED_CHECKPOINT_PATH
     val_split_path = args.val_split or DEFAULT_PAIRED_VAL_SPLIT
-    output_dir = args.output_dir or DEFAULT_PAIRED_OUTPUT_DIR
+    output_dir = args.output_dir or derive_default_output_dir(
+        checkpoint_path=checkpoint_path,
+        fallback_output_dir=DEFAULT_PAIRED_OUTPUT_DIR,
+        user_provided_checkpoint=args.checkpoint is not None,
+    )
     return checkpoint_path, val_split_path, output_dir
+
+
+def derive_default_output_dir(
+    checkpoint_path: Path,
+    fallback_output_dir: Path,
+    user_provided_checkpoint: bool,
+) -> Path:
+    if not user_provided_checkpoint:
+        return fallback_output_dir
+    return checkpoint_path.parent / "eval"
+
+
+def resolve_safe_output_dir(requested_output_dir: Path) -> tuple[Path, bool]:
+    if requested_output_dir.exists() and requested_output_dir.is_file():
+        raise ValueError(f"Requested output dir '{requested_output_dir}' is a file, not a directory.")
+    if not requested_output_dir.exists():
+        return requested_output_dir, False
+    if not any(requested_output_dir.iterdir()):
+        return requested_output_dir, False
+
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    candidate = requested_output_dir.parent / f"{requested_output_dir.name}_{timestamp}"
+    suffix = 1
+    while candidate.exists():
+        candidate = requested_output_dir.parent / f"{requested_output_dir.name}_{timestamp}_{suffix:02d}"
+        suffix += 1
+    return candidate, True
+
+
+def ensure_checkpoint_exists(checkpoint_path: Path) -> None:
+    if checkpoint_path.exists() and checkpoint_path.is_file():
+        return
+    raise FileNotFoundError(f"Checkpoint not found: {checkpoint_path}")
+
+
+def describe_device(device: torch.device) -> str:
+    if device.type == "cuda":
+        device_index = 0 if device.index is None else device.index
+        device_name = torch.cuda.get_device_name(device_index)
+        return f"gpu (cuda:{device_index}, {device_name})"
+    return device.type
 
 
 def run_single_evaluation(

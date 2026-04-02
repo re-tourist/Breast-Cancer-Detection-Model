@@ -4,7 +4,7 @@
 
 - repository type: single-package coursework / prototype repo
 - apparent purpose: breast-level malignant probability prediction from mammography images
-- current execution stage: Stage 2 active implementation for the first strict paired CC/MLO baseline
+- current execution stage: Stage 2 active implementation plus Linux server result review for the first strict paired CC/MLO baseline
 - primary language(s): Python
 - main framework(s): PyTorch, torchvision, scikit-learn, Pillow, NumPy
 - monorepo or not: no
@@ -106,8 +106,8 @@ Stable / sensitive areas:
 
 ### Dependency / package manager
 
-- signal: no curated package manager discovered
-- file(s): `requirements.txt` exists but is empty
+- signal: lightweight pip-style dependency list only
+- file(s): `requirements.txt` lists `numpy`, `Pillow`, `scikit-learn`, `torch`, `torchvision`
 
 ### Build system
 
@@ -141,7 +141,12 @@ Stable / sensitive areas:
 - `python scripts/check_dataset_loading.py --dataset paired --batch-size 2 --num-batches 1`
 - `python scripts/train_baseline.py --dataset single --epochs 1 --batch-size 8 --image-size 512`
 - `python scripts/train_baseline.py --dataset paired --image-size 1024 --epochs 10 --output-dir outputs/m2_baseline`
-- `python scripts/run_eval.py --dataset paired --checkpoint outputs/m2_baseline/best_model.pt --image-size 1024 --output-dir outputs/m2_baseline/eval`
+- `python scripts/run_eval.py --dataset paired --checkpoint outputs/m2_baseline/best_model.pt --image-size 1024`
+- Linux server run A:
+  - `python scripts/train_baseline.py --dataset paired --image-size 1024 --batch-size 1 --epochs 10 --lr 1e-3 --output-dir outputs/m2_baseline_20260330_021213`
+  - `python scripts/run_eval.py --dataset paired --checkpoint outputs/m2_baseline_20260330_021213/best_model.pt --image-size 1024 --batch-size 1 --output-dir outputs/m2_baseline_20260330_021213/eval`
+- Linux server run B training:
+  - `python scripts/train_baseline.py --dataset paired --image-size 1024 --batch-size 2 --epochs 10 --lr 1e-4 --output-dir outputs/m2_baseline_bs2_lr1e4`
 - `python scripts/run_stage1_smoke.py`
 - `python scripts/run_stage2_smoke.py`
 
@@ -201,7 +206,9 @@ Stable / sensitive areas:
 - `docs/task_definition.md`: breast-level task definition
 - `docs/handoff/stage1_handoff.md`: Stage 1 handoff
 - `docs/handoff/stage1_closeout.md`: Stage 1 closeout
-- `docs/handoff/stage2_closeout.md`: Stage 2 implementation closeout
+- `docs/handoff/stage2_closeout.md`: current Stage 2 closeout and next-step recommendation
+- `docs/handoff/stage2_problem_report_20260330.md`: first failed server run diagnosis
+- `docs/handoff/stage2_analysis_report_20260330_bs2_lr1e4.md`: second server training run analysis and eval mismatch note
 - `docs/ai/WORKFLOW_GUIDE.md`: canonical repo workflow
 - `docs/ai/PROJECT_CONTEXT.md`: project context for agents
 - `docs/plan/plan_stage2.md`: Stage 2 plan
@@ -250,7 +257,7 @@ Stable / sensitive areas:
 
 ## 9. Open Uncertainties
 
-- the formal Stage 2 server run at `1024` resolution has not yet been executed in this workspace
+- the most promising Stage 2 rerun still lacks a clean checkpoint-matched evaluation artifact set
 - exact contents of `configs/` were not inspected in depth
 - no CI workflow file was found during the scan, but that may change later
-- install/bootstrap instructions are still only lightly documented beyond runtime notes in `README.md`
+- install/bootstrap instructions are still intentionally lightweight beyond runtime notes in `README.md`
