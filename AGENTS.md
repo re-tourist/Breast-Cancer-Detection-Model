@@ -123,6 +123,7 @@ python -m unittest
 
 ## Default Working Style
 
+- Default to Chinese in user-facing responses unless the user explicitly asks for another language.
 - Start from the relevant entry script or module, then trace the backing `src/*` code.
 - For non-trivial milestone work, read the project context, repository snapshot, plan, issue breakdown, and any active contract freeze before editing.
 - Keep changes small and local to the affected subsystem.
@@ -131,6 +132,8 @@ python -m unittest
 - Validate the closest test or script first, then broaden only as needed.
 - Update docs when changing paths, artifact names, task definition, evaluation behavior, or CLI behavior.
 - For repeated server evaluation work, prefer checkpoint-matched output directories and avoid reusing stale shell variables from older runs.
+- For heavy compute work such as long GPU training, full-dataset evaluation, or full test-set submission inference, prepare the command locally and hand it off to the Linux server instead of running it on the local machine by default.
+- Every command that the agent asks the user to run must also be recorded in `run_order.md`. If `run_order.md` does not exist, create a replacement command log under `docs/`. Use a timestamped command-group heading and keep the body in alternating lines of comment then command so the user can execute it directly.
 
 ## Engineering Rules
 
