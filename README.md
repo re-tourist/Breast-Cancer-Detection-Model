@@ -144,6 +144,17 @@ python scripts/run_stage1_smoke.py
 python scripts/run_stage2_smoke.py
 ```
 
+8. Generate a test-set submission from the canonical Stage 2 checkpoint:
+
+```bash
+python scripts/run_test_submission.py --checkpoint outputs/m2_baseline_bs2_lr1e4/best_model.pt --image-size 1024 --batch-size 1
+```
+
+This writes:
+
+- `name_sid_submission.csv`
+- `submission_config.json`
+
 For a fuller Stage 1 runbook and artifact map, read `docs/handoff/stage1_handoff.md`.
 For the Stage 1 foundation closeout, read `docs/handoff/stage1_closeout.md`.
 For the final Stage 2 closeout and remaining limitations, read `docs/handoff/stage2_closeout.md`.
@@ -158,6 +169,7 @@ For the current best-known rerun analysis and eval mismatch note, read `docs/han
 - a paired EfficientNet-B2 baseline now trains one `breast_id` sample at a time from fixed `(CC, MLO)` inputs
 - single-image evaluation still writes image-level and breast-level artifacts
 - paired evaluation writes `breast_level_predictions.csv`, `breast_level_metrics.json`, and `eval_config.json`
+- test submission generation now writes `name_sid_submission.csv` and `submission_config.json` from a paired checkpoint
 - Stage 1 and Stage 2 smoke scripts both produce logs and markdown sanity reports
 
 ## Current Limitations
@@ -170,5 +182,6 @@ For the current best-known rerun analysis and eval mismatch note, read `docs/han
 ## Next Steps
 
 1. Treat `outputs/m2_baseline_bs2_lr1e4/` as the canonical Stage 2 baseline artifact root.
-2. Decide whether the next milestone should focus on broader evidence, such as full CV or repeated seeds, or on the next model improvement step.
-3. Preserve checkpoint-matched eval artifacts and `eval_config.json` for all future runs.
+2. Use `scripts/run_test_submission.py` on the Linux server to generate the teacher-facing submission CSV from the canonical checkpoint.
+3. Decide whether the next milestone should focus on broader evidence, such as full CV or repeated seeds, or on the next model improvement step.
+4. Preserve checkpoint-matched eval artifacts and `eval_config.json` for all future runs.

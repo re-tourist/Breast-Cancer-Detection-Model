@@ -36,6 +36,12 @@ cat "$RUN_DIR/eval/breast_level_metrics.json"
 
 # 查看本次 eval 的上下文，确认 checkpoint 和 output dir 没有跑偏
 cat "$RUN_DIR/eval/eval_config.json"
+
+# 用当前 canonical checkpoint 生成测试集提交文件
+python scripts/run_test_submission.py --checkpoint "$RUN_DIR/best_model.pt" --image-size 1024 --batch-size 1
+
+# 查看 submission 的上下文，确认 checkpoint 和 output dir 没有跑偏
+cat "$RUN_DIR/submission/submission_config.json"
 ```
 
 ## Important Notes
@@ -49,5 +55,8 @@ python scripts/train_baseline.py ... --output-dir outputs/m2_baseline_bs2_lr1e4
 python scripts/run_eval.py --dataset paired --checkpoint outputs/m2_baseline_bs2_lr1e4/best_model.pt --image-size 1024 --batch-size 1
 
 # 在服务器上做评估前先 git pull，避免跑到旧版 run_eval.py
+git pull --ff-only
+
+# 生成 teacher-facing submission 之前也先 git pull，避免跑到旧版脚本
 git pull --ff-only
 ```

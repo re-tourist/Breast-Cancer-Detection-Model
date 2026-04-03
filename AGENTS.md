@@ -66,6 +66,7 @@ High-frequency entrypoints:
 - `scripts/check_dataset_loading.py`
 - `scripts/train_baseline.py`
 - `scripts/run_eval.py`
+- `scripts/run_test_submission.py`
 - `scripts/run_stage1_smoke.py`
 - `scripts/run_stage2_smoke.py`
 
@@ -94,6 +95,9 @@ python scripts/train_baseline.py --epochs 1 --batch-size 8 --image-size 512
 # run breast-level evaluation from a checkpoint
 python scripts/run_eval.py --dataset paired --checkpoint outputs/m2_baseline/best_model.pt --image-size 1024 --batch-size 1
 
+# generate a test-set submission CSV from the canonical paired checkpoint
+python scripts/run_test_submission.py --checkpoint outputs/m2_baseline_bs2_lr1e4/best_model.pt --image-size 1024 --batch-size 1
+
 # run the end-to-end Stage 1 smoke flow
 python scripts/run_stage1_smoke.py
 
@@ -106,6 +110,7 @@ python -m unittest tests.test_datasets
 python -m unittest tests.test_splits
 python -m unittest tests.test_split_fold_assignment
 python -m unittest tests.test_eval
+python -m unittest tests.test_submission
 python -m unittest tests.test_training_smoke
 python -m unittest tests.test_stage1_smoke
 python -m unittest tests.test_stage2_smoke

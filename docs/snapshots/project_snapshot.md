@@ -73,12 +73,15 @@ Stable / sensitive areas:
   - `--dataset paired` runs the Stage 2 paired baseline
 - `scripts/run_stage1_smoke.py`
 - `scripts/run_stage2_smoke.py`
+- `scripts/run_test_submission.py`
 
 ### Inference / Evaluation entrypoints
 
 - `scripts/run_eval.py`
   - `--dataset single` writes image-level plus breast-level artifacts
   - `--dataset paired` writes breast-level predictions, metrics, and eval context artifacts
+- `scripts/run_test_submission.py`
+  - writes a teacher-facing test-set submission CSV plus submission config from a paired checkpoint
 - `src/eval/pipeline.py`
 - `src/eval/aggregation.py`
 
@@ -142,6 +145,7 @@ Stable / sensitive areas:
 - `python scripts/train_baseline.py --dataset single --epochs 1 --batch-size 8 --image-size 512`
 - `python scripts/train_baseline.py --dataset paired --image-size 1024 --epochs 10 --output-dir outputs/m2_baseline`
 - `python scripts/run_eval.py --dataset paired --checkpoint outputs/m2_baseline/best_model.pt --image-size 1024`
+- `python scripts/run_test_submission.py --checkpoint outputs/m2_baseline_bs2_lr1e4/best_model.pt --image-size 1024 --batch-size 1`
 - Linux server run A:
   - `python scripts/train_baseline.py --dataset paired --image-size 1024 --batch-size 1 --epochs 10 --lr 1e-3 --output-dir outputs/m2_baseline_20260330_021213`
   - `python scripts/run_eval.py --dataset paired --checkpoint outputs/m2_baseline_20260330_021213/best_model.pt --image-size 1024 --batch-size 1 --output-dir outputs/m2_baseline_20260330_021213/eval`
@@ -160,6 +164,7 @@ Stable / sensitive areas:
 - `python -m unittest tests.test_splits`
 - `python -m unittest tests.test_split_fold_assignment`
 - `python -m unittest tests.test_eval`
+- `python -m unittest tests.test_submission`
 - `python -m unittest tests.test_training_smoke`
 - `python -m unittest tests.test_stage1_smoke`
 - `python -m unittest tests.test_stage2_smoke`
