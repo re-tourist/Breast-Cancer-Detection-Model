@@ -5,11 +5,11 @@
 - Milestone ID: Stage 2
 - Milestone name: strict paired CC/MLO breast-level baseline
 - Status:
-  - [ ] complete
-  - [x] partially complete
+  - [x] complete
+  - [ ] partially complete
   - [ ] blocked
   - [x] handed off with risks
-- Date: 2026-04-02
+- Date: 2026-04-03
 - Related stage / branch:
   - `codex/docs-stage2-freeze`
   - `codex/feat-model-stage2`
@@ -22,21 +22,23 @@
 
 ## 1. Executive Summary
 
-Stage 2 was supposed to move the repository from the Stage 1 single-image fallback to the first strict paired breast-level baseline.
+Stage 2 was meant to move the repository from the Stage 1 single-image fallback to the first strict paired breast-level baseline.
 
-That engineering work is complete:
-- strict paired `(CC, MLO)` loading is enforced
-- the shared-backbone EfficientNet-B2 paired model is implemented
-- training and evaluation entrypoints support `--dataset {single,paired}`
-- paired evaluation writes only breast-level artifacts
-- a dedicated Stage 2 smoke path and regression coverage exist
+That milestone is now complete.
 
-Formal Linux server experimentation has also started:
-- run A (`batch_size=1`, `lr=1e-3`) completed on GPU but failed as a useful baseline, with `breast_auroc=0.5389` and strong negative-side collapse
-- run B (`batch_size=2`, `lr=1e-4`) showed a much healthier training curve and a best training-side validation `breast_auroc=0.9668`
-- a later eval against `outputs/m2_baseline_bs2_lr1e4/best_model.pt` reported `breast_auroc=0.9665`, but it was executed with an older server copy of `run_eval.py` and wrote into the legacy `outputs/m2_baseline/eval/` directory
+What was delivered:
+- strict paired `(CC, MLO)` loading and validation
+- a shared-backbone EfficientNet-B2 paired baseline
+- paired training and direct breast-level evaluation under `--dataset paired`
+- checkpoint selection by `breast_auroc`
+- clean checkpoint-matched eval artifacts with `eval_config.json`
 
-The Stage 2 implementation is operational and the latest optimization regime now has strong train-side and eval-side evidence. But the milestone should remain open until `outputs/m2_baseline_bs2_lr1e4/best_model.pt` is evaluated once more on the updated eval script so the artifact path and eval metadata are clean.
+The final canonical Stage 2 run is:
+- training root: `outputs/m2_baseline_bs2_lr1e4/`
+- eval root: `outputs/m2_baseline_bs2_lr1e4/eval/`
+- final paired eval AUROC: `0.9665`
+
+Stage 2 should be closed with documented limitations, not treated as an unlimited-quality final research result. The baseline is now credible, reproducible, and strong enough to hand off to the next milestone.
 
 ---
 
@@ -73,7 +75,7 @@ The Stage 2 implementation is operational and the latest optimization regime now
     - `python -m unittest tests.test_eval`
     - `python -m unittest tests.test_stage2_smoke`
   - Result:
-    - paired eval writes only `breast_level_predictions.csv` and `breast_level_metrics.json`
+    - paired eval writes only `breast_level_predictions.csv`, `breast_level_metrics.json`, and `eval_config.json`
 
 - [x] Strict paired dataset validation and view-order checks
   - Corresponding files:
@@ -96,49 +98,40 @@ The Stage 2 implementation is operational and the latest optimization regime now
   - Result:
     - the first server run was judged an optimization failure, not a contract or runtime failure
 
-- [x] Follow-up training run B and evaluation workflow hardening
-  - Corresponding files / docs:
-    - `scripts/run_eval.py`
-    - `tests/test_eval.py`
-    - `run_order.md`
+- [x] Formal Linux server run B, clean eval, and artifact hardening
+  - Corresponding artifacts / docs:
+    - `outputs/m2_baseline_bs2_lr1e4/metrics_summary.json`
+    - `outputs/m2_baseline_bs2_lr1e4/eval/eval_config.json`
+    - `outputs/m2_baseline_bs2_lr1e4/eval/breast_level_predictions.csv`
+    - `outputs/m2_baseline_bs2_lr1e4/eval/breast_level_metrics.json`
     - `docs/handoff/stage2_analysis_report_20260330_bs2_lr1e4.md`
   - Validation:
     - `python -m unittest tests.test_eval`
-    - manual review of the run B training log
+    - manual review of the final run B training and eval artifacts
   - Result:
-    - evaluation now prints the actual checkpoint/device/output dir, defaults to checkpoint-matched eval directories, and preserves non-empty eval outputs instead of overwriting them
-
-- [x] Checkpoint-matched run B eval result was later observed
-  - Corresponding artifacts / evidence:
-    - user-reported terminal log for `outputs/m2_baseline_bs2_lr1e4/best_model.pt`
-    - `outputs/m2_baseline/eval/breast_level_metrics.json`
-    - `outputs/m2_baseline/eval/breast_level_predictions.csv`
-  - Validation:
-    - artifact inspection after the full `outputs/m2_baseline/` directory was returned
-  - Result:
-    - the new checkpoint reached `breast_auroc=0.9665`, but the eval was written into the legacy `outputs/m2_baseline/eval/` path by an older server script revision
+    - the new hyperparameter regime produced a strong, clean, checkpoint-matched baseline artifact set
 
 ---
 
 ## 3. What Was Not Completed
 
-- [x] Clean evaluation of the new `batch_size=2`, `lr=1e-4` checkpoint
+- [x] Full cross-validation or repeated-seed robustness validation
   - Why not completed:
-    - the new checkpoint was evaluated, but it was evaluated by an older server copy of `run_eval.py`, so the artifact landed under `outputs/m2_baseline/eval/` instead of `outputs/m2_baseline_bs2_lr1e4/eval/`
+    - Stage 2 was frozen around one grouped holdout baseline, not a broader robustness milestone
   - Should this roll into the next step:
-    - yes; this is the immediate next action
+    - yes; this is a natural next-stage extension if more evidence is required
 
-- [x] Final Stage 2 close decision
+- [x] Deep error analysis beyond the current artifact review
   - Why not completed:
-    - the most promising run now has strong eval evidence, but its artifact lineage is still not clean enough for final closeout
+    - the milestone goal was to establish a credible baseline, not to exhaustively analyze all false positives / false negatives
   - Should this roll into the next step:
-    - yes; close/no-close depends on the checkpoint-matched eval result
+    - yes; this belongs to follow-up improvement work rather than Stage 2 closure
 
-- [x] Final prediction-distribution review for run B
+- [x] Full-CV runner or orchestration tooling
   - Why not completed:
-    - no clean `breast_level_predictions.csv` exists yet for the new checkpoint
+    - explicitly out of scope for the Stage 2 contract
   - Should this roll into the next step:
-    - yes; inspect the new prediction spread immediately after the clean eval
+    - yes if the next milestone needs stronger evidence or broader benchmarking
 
 ---
 
@@ -186,9 +179,9 @@ The Stage 2 implementation is operational and the latest optimization regime now
 
 - `docs/handoff/stage2_analysis_report_20260330_bs2_lr1e4.md`
   - Role:
-    - records the interpretation of run B training, the later `0.9665` eval, and the stale-server-script artifact mismatch
+    - records the interpretation of run B training, the later eval clarification, and the evolution of the eval workflow hardening
   - Sync state:
-    - yes; describes the current outstanding validation gap
+    - yes; now historical context rather than an open blocker
 
 ### Config / Scripts / Assets
 
@@ -202,7 +195,7 @@ The Stage 2 implementation is operational and the latest optimization regime now
   - Role:
     - public evaluation entrypoint
   - Reuse state:
-    - yes; now safer for repeated server experimentation
+    - yes; now writes `eval_config.json` and avoids silent eval artifact overwrite
 
 - `run_order.md`
   - Role:
@@ -221,9 +214,8 @@ The Stage 2 implementation is operational and the latest optimization regime now
 - server run A:
   - `python scripts/train_baseline.py --dataset paired --image-size 1024 --batch-size 1 --epochs 10 --lr 1e-3 --output-dir outputs/m2_baseline_20260330_021213`
   - `python scripts/run_eval.py --dataset paired --checkpoint outputs/m2_baseline_20260330_021213/best_model.pt --image-size 1024 --batch-size 1 --output-dir outputs/m2_baseline_20260330_021213/eval`
-- server run B training:
+- server run B:
   - `python scripts/train_baseline.py --dataset paired --image-size 1024 --batch-size 2 --epochs 10 --lr 1e-4 --output-dir outputs/m2_baseline_bs2_lr1e4`
-- later checkpoint-matched eval observed from the server:
   - `python scripts/run_eval.py --dataset paired --checkpoint outputs/m2_baseline_bs2_lr1e4/best_model.pt --image-size 1024 --batch-size 1`
 - latest local regression after eval hardening:
   - `python -m unittest tests.test_eval`
@@ -236,20 +228,27 @@ The Stage 2 implementation is operational and the latest optimization regime now
   - paired training / evaluation plumbing works end to end on local smoke-sized data
   - run A was a real GPU run and exposed a weak collapsed baseline
   - run B training is far more stable than run A
-  - run B checkpoint later produced `breast_auroc=0.9665` on paired eval
-  - eval artifact writing is now guarded against silent overwrite on repeated runs
+  - run B checkpoint produced `breast_auroc=0.9665` on clean paired eval
+  - the clean eval artifacts confirm:
+    - `checkpoint = outputs/m2_baseline_bs2_lr1e4/best_model.pt`
+    - `output_dir = outputs/m2_baseline_bs2_lr1e4/eval`
+    - `device = cuda`
+  - prediction spread is no longer collapsed:
+    - positive mean probability: `0.7081`
+    - negative mean probability: `0.0280`
+    - threshold-0.5 confusion summary: `TP=23`, `TN=96`, `FP=2`, `FN=9`
 
 - Not proved:
-  - that run B already has a clean checkpoint-matched eval artifact set under its own run directory
-  - that the latest paired baseline can be closed as the official Stage 2 outcome
-  - that no further optimization iteration is needed after the clean run B eval
+  - generalization beyond the current grouped holdout split
+  - robustness under broader seeds, folds, or alternative training schedules
+  - whether the next milestone should prioritize staged freezing, gradient accumulation, or broader validation
 
 ### Missing or Weak Validation
 
 - Missing validation 1:
-  - clean eval of `outputs/m2_baseline_bs2_lr1e4/best_model.pt`
+  - full cross-validation or repeated-seed robustness evidence
 - Missing validation 2:
-  - prediction-distribution and hardest-error review for the clean run B eval artifacts
+  - deeper medical or image-level inspection of hardest false positives / false negatives
 
 ---
 
@@ -257,18 +256,18 @@ The Stage 2 implementation is operational and the latest optimization regime now
 
 ### P0 / blocking
 
-- Stage 2 still lacks a clean checkpoint-matched eval artifact set for the most promising server run on the updated eval script
+- none for Stage 2 closeout
 
 ### P1 / serious but not blocking
 
-- run A proved the baseline can still collapse badly under unstable optimization settings
-- repeated shell use on the server can still confuse train/eval pairing if commands are edited carelessly
+- the final baseline result is still based on one grouped holdout split rather than full CV
 - paired training still depends on torchvision pretrained EfficientNet-B2 weights being available in the runtime environment
 
 ### P2 / should improve later
 
 - there is still no mainline full-CV paired runner
 - smoke checks prove contract correctness, not final quality
+- the current holdout still contains a few hard errors, including high-confidence false positives and low-confidence false negatives
 
 ---
 
@@ -287,9 +286,8 @@ Additional notes:
 - paired mode still enforces:
   - strict complete `(CC, MLO)` samples only
   - fixed `(CC, MLO)` ordering across dataset / model / eval / export
-- `prediction` exported as sigmoid probability
-- the eval hardening change improved workflow safety without changing the paired artifact contract
-- `eval_config.json` is now part of the expected eval evidence set for rerun traceability
+  - `prediction` exported as sigmoid probability
+- `eval_config.json` is now part of the expected eval evidence set for artifact traceability
 
 ---
 
@@ -297,38 +295,37 @@ Additional notes:
 
 ### Recommended first task
 
-- pull the latest branch on the Linux server, then run a clean evaluation against `outputs/m2_baseline_bs2_lr1e4/best_model.pt`
+- start the next milestone from the clean Stage 2 baseline artifacts rather than reimplementing Stage 2
 
 ### Recommended first files to read
 
-- `docs/contracts/contract_freeze_stage2.md`
+- `docs/handoff/stage2_closeout.md`
 - `docs/handoff/stage2_problem_report_20260330.md`
 - `docs/handoff/stage2_analysis_report_20260330_bs2_lr1e4.md`
-- `scripts/run_eval.py`
-- `run_order.md`
+- `outputs/m2_baseline_bs2_lr1e4/metrics_summary.json`
+- `outputs/m2_baseline_bs2_lr1e4/eval/eval_config.json`
 
 ### Recommended first checks
 
-- `git pull --ff-only`
-- `python scripts/run_eval.py --dataset paired --checkpoint outputs/m2_baseline_bs2_lr1e4/best_model.pt --image-size 1024 --batch-size 1`
 - review `outputs/m2_baseline_bs2_lr1e4/eval/breast_level_predictions.csv`
 - review `outputs/m2_baseline_bs2_lr1e4/eval/breast_level_metrics.json`
-- review `outputs/m2_baseline_bs2_lr1e4/eval/eval_config.json`
+- decide whether to expand evidence with full CV, repeated seeds, or error-focused analysis
 
 ### Recommended decision to make before coding
 
-- decide whether the clean run B eval is strong enough to close Stage 2
-- if not, decide whether the next iteration should prioritize staged freezing or gradient accumulation
+- decide what the next milestone is actually for:
+  - stronger evidence on the same baseline
+  - broader robustness validation
+  - or the next model improvement step
 
 ---
 
 ## 9. Handoff Guidance
 
 - Do not treat run A as the current best baseline; it is the diagnosed failure case.
-- Do not treat the legacy `outputs/m2_baseline/eval/` location as proof that the old `m2_baseline` checkpoint was evaluated; the user-reported log shows that a newer checkpoint was used.
+- Treat `outputs/m2_baseline_bs2_lr1e4/` as the canonical Stage 2 baseline artifact root.
 - Do not relax the strict paired contract to make experiments easier.
-- When using explicit `--output-dir` during training, use the matching checkpoint path during eval instead of relying on an old shell `RUN_DIR`.
-- Before rerunning eval on the server, `git pull --ff-only` so the newer `run_eval.py` and `eval_config.json` behavior are actually present.
+- Preserve `eval_config.json` with every future eval so checkpoint lineage remains auditable.
 - If any future change touches task meaning, split protocol, or the frozen paired export semantics, re-freeze before implementation.
 
 ---
@@ -336,10 +333,10 @@ Additional notes:
 ## 10. Final Verdict
 
 - [ ] milestone can be cleanly closed
-- [ ] milestone can be closed with documented limitations
-- [x] milestone should remain open pending one last validation
+- [x] milestone can be closed with documented limitations
+- [ ] milestone should remain open pending one last validation
 - [ ] milestone should not be closed because the result is not yet reliable
 
 Current conclusion:
 
-Stage 2 implementation is complete and current optimization evidence is now strong, but Stage 2 should remain open until `outputs/m2_baseline_bs2_lr1e4/best_model.pt` is evaluated cleanly on the updated eval script and the resulting artifacts are reviewed under the correct run directory.
+Stage 2 is complete and can be closed with documented limitations. The final canonical baseline is `outputs/m2_baseline_bs2_lr1e4/`, with clean checkpoint-matched eval artifacts under `outputs/m2_baseline_bs2_lr1e4/eval/` and a final breast-level AUROC of `0.9665` on the grouped validation split.

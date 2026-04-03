@@ -3,19 +3,19 @@
 ## Purpose
 
 - Repo-level operating manual for AI coding agents working in this repository.
-- This is a single-package Python project for breast cancer detection work: Stage 1 established a minimal runnable pipeline, and the repo is now in active Stage 2 execution for a stricter paired breast-level baseline.
+- This is a single-package Python project for breast cancer detection work: Stage 1 established a minimal runnable pipeline, and Stage 2 has now closed on a stricter paired breast-level baseline.
 - Use this file for durable execution rules. Use `README.md` and `docs/` for human-oriented project context.
 
 ## Current Boundary
 
-- Treat the repository as a Stage 1 foundation with an active Stage 2 execution boundary:
+- Treat the repository as a Stage 1 foundation with a completed Stage 2 paired-baseline boundary:
   - dataset inspection and indexing
   - `breast_id`-grouped split generation
   - the current single-image fallback path
   - breast-level aggregation and evaluation
   - smoke-tested artifact generation
   - the strict paired CC/MLO Stage 2 baseline path
-- For M2-style paired-baseline changes, follow the active Stage 2 plan, issue breakdown, and contract freeze instead of improvising.
+- For M2-style paired-baseline work or follow-up changes, follow the Stage 2 plan, issue breakdown, contract freeze, and closeout instead of improvising.
 
 ## Read First
 

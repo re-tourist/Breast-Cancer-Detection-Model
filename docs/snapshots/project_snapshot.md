@@ -4,7 +4,7 @@
 
 - repository type: single-package coursework / prototype repo
 - apparent purpose: breast-level malignant probability prediction from mammography images
-- current execution stage: Stage 2 active implementation plus Linux server result review for the first strict paired CC/MLO baseline
+- current execution stage: Stage 2 closed with documented limitations on a clean strict paired CC/MLO baseline
 - primary language(s): Python
 - main framework(s): PyTorch, torchvision, scikit-learn, Pillow, NumPy
 - monorepo or not: no
@@ -147,6 +147,8 @@ Stable / sensitive areas:
   - `python scripts/run_eval.py --dataset paired --checkpoint outputs/m2_baseline_20260330_021213/best_model.pt --image-size 1024 --batch-size 1 --output-dir outputs/m2_baseline_20260330_021213/eval`
 - Linux server run B training:
   - `python scripts/train_baseline.py --dataset paired --image-size 1024 --batch-size 2 --epochs 10 --lr 1e-4 --output-dir outputs/m2_baseline_bs2_lr1e4`
+- Linux server run B clean eval:
+  - `python scripts/run_eval.py --dataset paired --checkpoint outputs/m2_baseline_bs2_lr1e4/best_model.pt --image-size 1024 --batch-size 1`
 - `python scripts/run_stage1_smoke.py`
 - `python scripts/run_stage2_smoke.py`
 
@@ -206,7 +208,7 @@ Stable / sensitive areas:
 - `docs/task_definition.md`: breast-level task definition
 - `docs/handoff/stage1_handoff.md`: Stage 1 handoff
 - `docs/handoff/stage1_closeout.md`: Stage 1 closeout
-- `docs/handoff/stage2_closeout.md`: current Stage 2 closeout and next-step recommendation
+- `docs/handoff/stage2_closeout.md`: final Stage 2 closeout and next-step recommendation
 - `docs/handoff/stage2_problem_report_20260330.md`: first failed server run diagnosis
 - `docs/handoff/stage2_analysis_report_20260330_bs2_lr1e4.md`: second server training run analysis and eval mismatch note
 - `docs/ai/WORKFLOW_GUIDE.md`: canonical repo workflow
@@ -257,7 +259,7 @@ Stable / sensitive areas:
 
 ## 9. Open Uncertainties
 
-- the most promising Stage 2 rerun still lacks a clean checkpoint-matched evaluation artifact set
+- the final Stage 2 result is still based on one grouped holdout split rather than full CV
 - exact contents of `configs/` were not inspected in depth
 - no CI workflow file was found during the scan, but that may change later
 - install/bootstrap instructions are still intentionally lightweight beyond runtime notes in `README.md`

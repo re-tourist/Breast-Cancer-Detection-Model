@@ -9,12 +9,12 @@
   - [x] coursework
   - [x] prototype
   - [ ] infrastructure
-- One-sentence description: Stage 2 paired breast-level baseline repository for malignant probability prediction from mammography images, with active Linux server result review.
+- One-sentence description: Repository for breast-level malignant probability prediction from mammography images, with Stage 2 closed on a clean paired breast-level baseline.
 - Primary language / stack: Python, PyTorch, NumPy, Pillow, scikit-learn
 
 ## 2. Current Phase
 
-- Current milestone / stage: Milestone 2 active execution with completed implementation, one diagnosed failed server run, and one promising rerun pending clean eval
+- Current milestone / stage: Milestone 2 closed with documented limitations; next milestone not yet frozen
 - Why this stage exists: Stage 1 proved the pipeline can ingest data, split by `breast_id`, train, evaluate, and smoke-test end to end; Stage 2 should move from structural proof to the first credible breast-level baseline.
 - What this stage should prove or deliver: a leakage-safe paired CC/MLO baseline, reproducible training/evaluation artifacts, and a clear handoff to the next milestone.
 - What is explicitly out of scope in this stage:
@@ -44,7 +44,7 @@ Current live evidence:
 
 - server run A at `batch_size=1`, `lr=1e-3` completed on GPU and failed with weak paired AUROC plus negative-side collapse
 - server run B at `batch_size=2`, `lr=1e-4` produced a much stronger training-side validation curve
-- the current missing step is a clean eval against `outputs/m2_baseline_bs2_lr1e4/best_model.pt`
+- the final clean eval against `outputs/m2_baseline_bs2_lr1e4/best_model.pt` reported `breast_auroc=0.9665`
 
 ## 4. Human-Owned Decisions
 
@@ -94,10 +94,10 @@ Project-specific constraints:
 
 A phase is considered successful when:
 
-- [ ] a paired breast-level baseline can train and evaluate without changing the task definition
-- [ ] breast-level predictions and metrics are written to reproducible artifacts
-- [ ] leakage-safety is preserved by `breast_id`-grouped validation
-- [ ] paired-mode exports preserve frozen `(CC, MLO)` order and `prediction` means sigmoid probability
+- [x] a paired breast-level baseline can train and evaluate without changing the task definition
+- [x] breast-level predictions and metrics are written to reproducible artifacts
+- [x] leakage-safety is preserved by `breast_id`-grouped validation
+- [x] paired-mode exports preserve frozen `(CC, MLO)` order and `prediction` means sigmoid probability
 
 Optional quantitative gates:
 
@@ -105,9 +105,9 @@ Optional quantitative gates:
 - runtime / cost budget: keep a narrow smoke-sized validation path available
 - reproducibility requirement: the same split and config inputs produce the same artifact layout and comparable outputs
 
-Current blocking evidence gap:
+Current documented limitation:
 
-- the most promising rerun has not yet produced a clean checkpoint-matched eval artifact set
+- the Stage 2 result is still based on one grouped holdout split rather than broader CV or repeated-seed evidence
 
 ## 8. Stop Conditions
 

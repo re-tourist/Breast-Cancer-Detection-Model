@@ -4,18 +4,17 @@
 
 This repository is a course project for breast cancer detection from mammography images.
 
-The repository is now in active Stage 2 execution for the breast-level malignant probability task.
+The repository has completed Stage 2 for the breast-level malignant probability task and is ready for the next milestone.
 
 Current status:
 - Stage 1 data indexing, grouped split, evaluation, and smoke-test infrastructure remain in place
 - Stage 1 single-image training remains available as a fallback path
 - Stage 2 paired CC/MLO training, direct breast-level evaluation, and a dedicated Stage 2 smoke script are implemented
 - the paired contract is frozen to strict complete `(CC, MLO)` samples, fixed `(CC, MLO)` ordering, and probability-valued `prediction` exports
-- formal Linux server experimentation has started:
+- formal Linux server experimentation completed for the Stage 2 baseline:
   - run A at `batch_size=1`, `lr=1e-3` exposed unstable optimization and weak paired performance
   - run B at `batch_size=2`, `lr=1e-4` produced a much stronger training-side validation curve
-  - a later checkpoint-matched eval reported `breast_auroc=0.9665`, but it was written by an older server copy of `run_eval.py` into the legacy `outputs/m2_baseline/eval/` directory
-  - one clean eval rerun on the updated script is still recommended before Stage 2 is closed
+  - the clean checkpoint-matched eval under `outputs/m2_baseline_bs2_lr1e4/eval/` reported `breast_auroc=0.9665`
 
 ## Current Stage and Scope
 
@@ -32,7 +31,7 @@ Out of scope for the current stage:
 - full cross-validation training orchestration
 - hyperparameter search and benchmark tuning
 - heavy evaluator or experiment-management frameworks
-- claiming a strong Stage 2 baseline before the formal server run is complete
+- claiming broader robustness than the current grouped holdout evidence supports
 
 ## Repository Structure
 
@@ -147,7 +146,7 @@ python scripts/run_stage2_smoke.py
 
 For a fuller Stage 1 runbook and artifact map, read `docs/handoff/stage1_handoff.md`.
 For the Stage 1 foundation closeout, read `docs/handoff/stage1_closeout.md`.
-For the current Stage 2 engineering closeout and remaining risks, read `docs/handoff/stage2_closeout.md`.
+For the final Stage 2 closeout and remaining limitations, read `docs/handoff/stage2_closeout.md`.
 For the failed first server run diagnosis, read `docs/handoff/stage2_problem_report_20260330.md`.
 For the current best-known rerun analysis and eval mismatch note, read `docs/handoff/stage2_analysis_report_20260330_bs2_lr1e4.md`.
 
@@ -158,18 +157,18 @@ For the current best-known rerun analysis and eval mismatch note, read `docs/han
 - a single-image fallback training loop and checkpoint selection flow remain available
 - a paired EfficientNet-B2 baseline now trains one `breast_id` sample at a time from fixed `(CC, MLO)` inputs
 - single-image evaluation still writes image-level and breast-level artifacts
-- paired evaluation writes only `breast_level_predictions.csv` and `breast_level_metrics.json`
+- paired evaluation writes `breast_level_predictions.csv`, `breast_level_metrics.json`, and `eval_config.json`
 - Stage 1 and Stage 2 smoke scripts both produce logs and markdown sanity reports
 
 ## Current Limitations
 
-- the latest promising Stage 2 run still needs a clean checkpoint-matched evaluation artifact set
+- the Stage 2 result is still based on one grouped holdout split rather than full cross-validation
 - local smoke and unit tests only prove plumbing and contract correctness; they do not prove final model quality
 - full cross-validation training is still not implemented as a mainline runner
 - dependency packaging remains lightweight and not yet cleaned up for broader handoff
 
 ## Next Steps
 
-1. Pull the latest branch on the Linux server and rerun eval against `outputs/m2_baseline_bs2_lr1e4/best_model.pt`.
-2. Review `outputs/m2_baseline_bs2_lr1e4/eval/` for metric quality, prediction spread, error patterns, and `eval_config.json`.
-3. Decide whether Stage 2 can be closed or should continue with staged freezing or gradient accumulation.
+1. Treat `outputs/m2_baseline_bs2_lr1e4/` as the canonical Stage 2 baseline artifact root.
+2. Decide whether the next milestone should focus on broader evidence, such as full CV or repeated seeds, or on the next model improvement step.
+3. Preserve checkpoint-matched eval artifacts and `eval_config.json` for all future runs.
